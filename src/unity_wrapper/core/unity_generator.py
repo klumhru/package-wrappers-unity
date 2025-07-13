@@ -3,6 +3,7 @@
 import json
 import os
 import uuid
+import yaml
 from pathlib import Path
 from typing import Dict, List, Optional, Any, TYPE_CHECKING
 from jinja2 import Environment, FileSystemLoader
@@ -154,7 +155,13 @@ class UnityGenerator:
             meta_content["importer"] = "DefaultImporter"
             meta_content["folderAsset"] = "yes"
 
-        return f"fileFormatVersion: 2\\nguid: {guid}\\n"
+        # Use YAML to generate properly formatted meta file content
+        return yaml.dump(
+            meta_content,
+            default_flow_style=False,
+            allow_unicode=True,
+            sort_keys=False,
+        )
 
     def write_meta_file(
         self, file_path: Path, file_type: str = "DefaultAsset"
@@ -210,28 +217,62 @@ class UnityGenerator:
         self, source_dir: Path, package_dir: Path
     ) -> Path:
         """Organize files into Unity package structure with Runtime folder."""
-        runtime_dir = package_dir / "Runtime"
-        runtime_dir.mkdir(parents=True, exist_ok=True)
-
-        # Copy all source files to Runtime directory
         import shutil
 
-        if source_dir.exists():
-            for item in source_dir.iterdir():
-                if item.is_file():
-                    shutil.copy2(item, runtime_dir)
-                elif item.is_dir():
-                    shutil.copytree(
-                        item, runtime_dir / item.name, dirs_exist_ok=True
-                    )
+        # Check if source directory already has a Runtime folder
+        source_runtime_dir = source_dir / "Runtime"
+
+        if source_runtime_dir.exists() and source_runtime_dir.is_dir():
+            # If source already has Runtime folder, copy it directly
+            runtime_dir = package_dir / "Runtime"
+
+            if runtime_dir.exists():
+                shutil.rmtree(runtime_dir)
+
+            shutil.copytree(source_runtime_dir, runtime_dir)
+
+            # Also copy any other files/folders at the root level
+            if source_dir.exists():
+                for item in source_dir.iterdir():
+                    if (
+                        item.name != "Runtime"
+                        and not (package_dir / item.name).exists()
+                    ):
+                        if item.is_file():
+                            shutil.copy2(item, package_dir)
+                        elif item.is_dir():
+                            shutil.copytree(
+                                item,
+                                package_dir / item.name,
+                                dirs_exist_ok=True,
+                            )
+
+            logger.info(
+                f"Found existing Runtime folder, copied directly to {runtime_dir}"
+            )
+        else:
+            # Original behavior: create Runtime folder and copy all content into it
+            runtime_dir = package_dir / "Runtime"
+            runtime_dir.mkdir(parents=True, exist_ok=True)
+
+            # Copy all source files to Runtime directory
+            if source_dir.exists():
+                for item in source_dir.iterdir():
+                    if item.is_file():
+                        shutil.copy2(item, runtime_dir)
+                    elif item.is_dir():
+                        shutil.copytree(
+                            item, runtime_dir / item.name, dirs_exist_ok=True
+                        )
+
+            logger.info(
+                f"Organized source files into Runtime structure at {runtime_dir}"
+            )
 
         # Remove C# project files that aren't needed in Unity
         if self._should_remove_csharp_project_files():
             self._remove_csharp_project_files(runtime_dir)
 
-        logger.info(
-            f"Organized source files into Runtime structure at {runtime_dir}"
-        )
         return runtime_dir
 
     def _should_remove_csharp_project_files(self) -> bool:
