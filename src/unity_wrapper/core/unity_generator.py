@@ -235,7 +235,7 @@ class UnityGenerator:
         return runtime_dir
 
     def _should_remove_csharp_project_files(self) -> bool:
-        """Check if C# project files should be removed based on configuration."""
+        """Check if C# project files should be removed (config)."""
         if not self.config:
             return True  # Default to removing project files
 
@@ -286,14 +286,16 @@ class UnityGenerator:
                 if file_path.is_file():
                     file_path.unlink()
                     logger.debug(
-                        f"Removed C# project file: {file_path.relative_to(directory)}"
+                        f"Removed C# project file: "
+                        f"{file_path.relative_to(directory)}"
                     )
                     files_removed += 1
                 elif file_path.is_dir() and ext.startswith("."):
                     # Remove directories like .vs, .vscode, .idea
                     shutil.rmtree(file_path)
                     logger.debug(
-                        f"Removed C# project directory: {file_path.relative_to(directory)}"
+                        f"Removed C# project directory: "
+                        f"{file_path.relative_to(directory)}"
                     )
                     files_removed += 1
 
@@ -303,7 +305,8 @@ class UnityGenerator:
                 if file_path.is_file():
                     file_path.unlink()
                     logger.debug(
-                        f"Removed C# project file: {file_path.relative_to(directory)}"
+                        f"Removed C# project file: "
+                        f"{file_path.relative_to(directory)}"
                     )
                     files_removed += 1
 
