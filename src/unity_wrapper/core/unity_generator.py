@@ -225,7 +225,7 @@ class UnityGenerator:
         """Check if C# project files should be removed based on configuration."""
         if not self.config:
             return True  # Default to removing project files
-        
+
         build_settings = self.config.get_build_settings()
         return build_settings.get("remove_csharp_project_files", True)
 
@@ -233,50 +233,55 @@ class UnityGenerator:
         """Remove C# project files that aren't needed in Unity packages."""
         # Define C# project file extensions to remove
         csharp_project_extensions = [
-            ".csproj",      # C# project files
-            ".sln",         # Visual Studio solution files
-            ".vcxproj",     # Visual C++ project files
+            ".csproj",  # C# project files
+            ".sln",  # Visual Studio solution files
+            ".vcxproj",  # Visual C++ project files
             ".vcxproj.filters",  # Visual C++ project filters
-            ".vcxproj.user",     # Visual C++ user settings
-            ".suo",         # Visual Studio solution user options
-            ".user",        # User-specific project settings
-            ".vs",          # Visual Studio folder
-            ".vscode",      # VS Code settings folder
-            ".idea",        # JetBrains IDE settings folder
+            ".vcxproj.user",  # Visual C++ user settings
+            ".suo",  # Visual Studio solution user options
+            ".user",  # User-specific project settings
+            ".vs",  # Visual Studio folder
+            ".vscode",  # VS Code settings folder
+            ".idea",  # JetBrains IDE settings folder
         ]
 
         # Define C# project file names to remove
         csharp_project_files = [
             "packages.config",  # NuGet packages config
-            "app.config",       # Application configuration
-            "web.config",       # Web application configuration
+            "app.config",  # Application configuration
+            "web.config",  # Web application configuration
             "AssemblyInfo.cs",  # Assembly info (Unity generates its own)
             "GlobalAssemblyInfo.cs",  # Global assembly info
-            "Directory.Build.props",   # MSBuild directory props
-            "Directory.Build.targets", # MSBuild directory targets
-            ".editorconfig",    # Editor configuration
-            ".gitignore",       # Git ignore (not needed in packages)
-            ".gitattributes",   # Git attributes
-            "README.md",        # Documentation (package.json has description)
-            "LICENSE",          # License (package.json has license field)
-            "CHANGELOG.md",     # Changelog
+            "Directory.Build.props",  # MSBuild directory props
+            "Directory.Build.targets",  # MSBuild directory targets
+            ".editorconfig",  # Editor configuration
+            ".gitignore",  # Git ignore (not needed in packages)
+            ".gitattributes",  # Git attributes
+            "README.md",  # Documentation (package.json has description)
+            "LICENSE",  # License (package.json has license field)
+            "CHANGELOG.md",  # Changelog
             "CONTRIBUTING.md",  # Contributing guidelines
         ]
 
         files_removed = 0
-        
+
         # Remove files by extension
         for ext in csharp_project_extensions:
             for file_path in directory.rglob(f"*{ext}"):
                 if file_path.is_file():
                     file_path.unlink()
-                    logger.debug(f"Removed C# project file: {file_path.relative_to(directory)}")
+                    logger.debug(
+                        f"Removed C# project file: {file_path.relative_to(directory)}"
+                    )
                     files_removed += 1
                 elif file_path.is_dir() and ext.startswith("."):
                     # Remove directories like .vs, .vscode, .idea
                     import shutil
+
                     shutil.rmtree(file_path)
-                    logger.debug(f"Removed C# project directory: {file_path.relative_to(directory)}")
+                    logger.debug(
+                        f"Removed C# project directory: {file_path.relative_to(directory)}"
+                    )
                     files_removed += 1
 
         # Remove files by name
@@ -284,7 +289,9 @@ class UnityGenerator:
             for file_path in directory.rglob(filename):
                 if file_path.is_file():
                     file_path.unlink()
-                    logger.debug(f"Removed C# project file: {file_path.relative_to(directory)}")
+                    logger.debug(
+                        f"Removed C# project file: {file_path.relative_to(directory)}"
+                    )
                     files_removed += 1
 
         if files_removed > 0:
