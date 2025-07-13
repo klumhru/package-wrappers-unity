@@ -35,7 +35,9 @@ class GitManager:
                 # Check if ref has changed
                 current_ref = self._get_current_ref(repo)
                 if current_ref != ref:
-                    logger.info(f"Ref changed from {current_ref} to {ref}, updating...")
+                    logger.info(
+                        f"Ref changed from {current_ref} to {ref}, updating..."
+                    )
                     self._checkout_ref(repo, ref)
                     return repo_path
                 else:
@@ -81,7 +83,7 @@ class GitManager:
             for tag in repo.tags:
                 if tag.commit == repo.head.commit:
                     return tag.name
-        except:
+        except Exception:
             pass
 
         # Return commit hash
@@ -122,7 +124,9 @@ class GitManager:
 
         # Copy the folder
         shutil.copytree(source_full_path, destination)
-        logger.info(f"Extracted {source_path} from {repo_name} to {destination}")
+        logger.info(
+            f"Extracted {source_path} from {repo_name} to {destination}"
+        )
 
     def cleanup(self) -> None:
         """Clean up temporary repositories."""

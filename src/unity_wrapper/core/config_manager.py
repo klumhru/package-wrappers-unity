@@ -29,7 +29,9 @@ class ConfigManager:
             with open(packages_file, "r", encoding="utf-8") as f:
                 self.packages_config = yaml.safe_load(f) or {}
         else:
-            logger.warning(f"Packages configuration file not found: {packages_file}")
+            logger.warning(
+                f"Packages configuration file not found: {packages_file}"
+            )
             self.packages_config = {"packages": []}
 
         # Load settings configuration
@@ -38,53 +40,59 @@ class ConfigManager:
             with open(settings_file, "r", encoding="utf-8") as f:
                 self.settings_config = yaml.safe_load(f) or {}
         else:
-            logger.warning(f"Settings configuration file not found: {settings_file}")
+            logger.warning(
+                f"Settings configuration file not found: {settings_file}"
+            )
             self.settings_config = {}
 
         logger.info("Configuration loaded successfully")
 
-    def get_package_config(self, package_name: str) -> Optional[Dict[str, Any]]:
+    def get_package_config(
+        self, package_name: str
+    ) -> Optional[Dict[str, Any]]:
         """Get configuration for a specific package."""
         packages = self.packages_config.get("packages", [])
 
         for package in packages:
             if package.get("name") == package_name:
-                return package
+                return cast(Dict[str, Any], package)
 
         return None
 
     def get_package_names(self) -> List[str]:
         """Get list of all configured package names."""
         packages = self.packages_config.get("packages", [])
-        return [package.get("name") for package in packages if package.get("name")]
+        return [
+            package.get("name") for package in packages if package.get("name")
+        ]
 
     def get_templates_dir(self) -> Path:
         """Get templates directory path."""
         templates_dir = self.settings_config.get("templates_dir", "templates")
         if Path(templates_dir).is_absolute():
-            return Path(templates_dir)
+            return Path(cast(str, templates_dir))
         else:
-            return self.config_path.parent / templates_dir
+            return self.config_path.parent / cast(str, templates_dir)
 
     def get_output_dir(self) -> Path:
         """Get output directory path."""
         output_dir = self.settings_config.get("output_dir", "packages")
         if Path(output_dir).is_absolute():
-            return Path(output_dir)
+            return Path(cast(str, output_dir))
         else:
-            return self.config_path.parent / output_dir
+            return self.config_path.parent / cast(str, output_dir)
 
     def get_work_dir(self) -> Path:
         """Get working directory path for temporary files."""
         work_dir = self.settings_config.get("work_dir", ".unity_wrapper_temp")
         if Path(work_dir).is_absolute():
-            return Path(work_dir)
+            return Path(cast(str, work_dir))
         else:
-            return self.config_path.parent / work_dir
+            return self.config_path.parent / cast(str, work_dir)
 
     def get_github_settings(self) -> Dict[str, Any]:
         """Get GitHub publishing settings."""
-        return self.settings_config.get("github", {})
+        return cast(Dict[str, Any], self.settings_config.get("github", {}))
 
     def get_global_settings(self) -> Dict[str, Any]:
         """Get global settings."""
@@ -92,14 +100,16 @@ class ConfigManager:
 
     def get_build_settings(self) -> Dict[str, Any]:
         """Get build settings."""
-        return self.settings_config.get("build", {})
+        return cast(Dict[str, Any], self.settings_config.get("build", {}))
 
     def add_package(self, package_config: Dict[str, Any]) -> None:
         """Add a new package configuration."""
         if "packages" not in self.packages_config:
             self.packages_config["packages"] = []
 
-        packages_list = cast(List[Dict[str, Any]], self.packages_config["packages"])
+        packages_list = cast(
+            List[Dict[str, Any]], self.packages_config["packages"]
+        )
         packages_list.append(package_config)
 
     def remove_package(self, package_name: str) -> bool:
@@ -118,11 +128,15 @@ class ConfigManager:
         # Save packages configuration
         packages_file = self.config_path / "packages.yaml"
         with open(packages_file, "w", encoding="utf-8") as f:
-            yaml.dump(self.packages_config, f, default_flow_style=False, indent=2)
+            yaml.dump(
+                self.packages_config, f, default_flow_style=False, indent=2
+            )
 
         # Save settings configuration
         settings_file = self.config_path / "settings.yaml"
         with open(settings_file, "w", encoding="utf-8") as f:
-            yaml.dump(self.settings_config, f, default_flow_style=False, indent=2)
+            yaml.dump(
+                self.settings_config, f, default_flow_style=False, indent=2
+            )
 
         logger.info("Configuration saved successfully")
