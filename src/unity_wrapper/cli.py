@@ -14,13 +14,16 @@ from .utils.github_publisher import GitHubPublisher
 
 # Set up logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
 
 @click.group()
-@click.option("--config", "-c", default="config", help="Configuration directory path")
+@click.option(
+    "--config", "-c", default="config", help="Configuration directory path"
+)
 @click.option(
     "--output", "-o", default="packages", help="Output directory for packages"
 )
@@ -53,7 +56,9 @@ def build(ctx: click.Context, package_name: Optional[str]) -> None:
             else:
                 click.echo("Building all packages...")
                 built_packages = builder.build_all_packages()
-                click.echo(f"Successfully built {len(built_packages)} packages:")
+                click.echo(
+                    f"Successfully built {len(built_packages)} packages:"
+                )
                 for package_path in built_packages:
                     click.echo(f"  - {package_path}")
 
@@ -79,14 +84,17 @@ def watch(ctx: click.Context) -> None:
             with PackageBuilder(config_path, output_path) as builder:
                 updated_packages = builder.check_for_updates()
                 if updated_packages:
-                    click.echo(f"Rebuilding {len(updated_packages)} packages...")
+                    click.echo(
+                        f"Rebuilding {len(updated_packages)} packages..."
+                    )
                     for package_name in updated_packages:
                         try:
                             package_path = builder.build_package(package_name)
                             click.echo(f"Rebuilt: {package_path}")
                         except Exception as e:
                             click.echo(
-                                f"Failed to rebuild {package_name}: {e}", err=True
+                                f"Failed to rebuild {package_name}: {e}",
+                                err=True,
                             )
                 else:
                     click.echo("No packages need rebuilding")
@@ -113,7 +121,9 @@ def check(ctx: click.Context) -> None:
             updated_packages = builder.check_for_updates()
 
             if updated_packages:
-                click.echo(f"Packages needing updates ({len(updated_packages)}):")
+                click.echo(
+                    f"Packages needing updates ({len(updated_packages)}):"
+                )
                 for package_name in updated_packages:
                     click.echo(f"  - {package_name}")
             else:
@@ -160,14 +170,18 @@ def publish(
             published_count = 0
 
             for package_dir in output_path.iterdir():
-                if package_dir.is_dir() and (package_dir / "package.json").exists():
+                if (
+                    package_dir.is_dir()
+                    and (package_dir / "package.json").exists()
+                ):
                     try:
                         publisher.publish_package(package_dir)
                         click.echo(f"Published: {package_dir.name}")
                         published_count += 1
                     except Exception as e:
                         click.echo(
-                            f"Failed to publish {package_dir.name}: {e}", err=True
+                            f"Failed to publish {package_dir.name}: {e}",
+                            err=True,
                         )
 
             click.echo(f"Successfully published {published_count} packages")
@@ -181,7 +195,9 @@ def publish(
 @click.option("--name", required=True, help="Package name")
 @click.option("--url", required=True, help="Git repository URL")
 @click.option("--ref", default="main", help="Git ref (branch, tag, or commit)")
-@click.option("--extract-path", default=".", help="Path to extract from repository")
+@click.option(
+    "--extract-path", default=".", help="Path to extract from repository"
+)
 @click.option("--namespace", help="C# namespace for the package")
 @click.pass_context
 def add(
@@ -252,10 +268,14 @@ def list_packages(ctx: click.Context) -> None:
         if package_names:
             click.echo(f"Configured packages ({len(package_names)}):")
             for package_name in package_names:
-                package_config = config_manager.get_package_config(package_name)
+                package_config = config_manager.get_package_config(
+                    package_name
+                )
                 if package_config is not None:
                     source = package_config["source"]
-                    click.echo(f"  - {package_name} ({source['url']}@{source['ref']})")
+                    click.echo(
+                        f"  - {package_name} ({source['url']}@{source['ref']})"
+                    )
                 else:
                     click.echo(f"  - {package_name} (configuration error)")
         else:

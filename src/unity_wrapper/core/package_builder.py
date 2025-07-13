@@ -17,7 +17,10 @@ class PackageBuilder:
     """Main orchestrator for building Unity packages from source repositories."""
 
     def __init__(
-        self, config_path: Path, output_dir: Path, work_dir: Optional[Path] = None
+        self,
+        config_path: Path,
+        output_dir: Path,
+        work_dir: Optional[Path] = None,
     ):
         """Initialize PackageBuilder with configuration and output directories."""
         self.config = ConfigManager(config_path)
@@ -39,7 +42,9 @@ class PackageBuilder:
         # Get package configuration
         package_config = self.config.get_package_config(package_name)
         if not package_config:
-            raise ValueError(f"Package configuration not found: {package_name}")
+            raise ValueError(
+                f"Package configuration not found: {package_name}"
+            )
 
         # Extract source configuration
         source_config = package_config["source"]
@@ -47,7 +52,9 @@ class PackageBuilder:
 
         # Clone or update repository
         repo_path = self.git_manager.clone_or_update(
-            url=source_config["url"], ref=source_config["ref"], name=package_name
+            url=source_config["url"],
+            ref=source_config["ref"],
+            name=package_name,
         )
 
         # Create package output directory
@@ -125,7 +132,10 @@ class PackageBuilder:
             repo_path = self.work_dir / package_name
             if repo_path.exists():
                 current_info = self.git_manager.get_repo_info(package_name)
-                if current_info and current_info["ref"] != source_config["ref"]:
+                if (
+                    current_info
+                    and current_info["ref"] != source_config["ref"]
+                ):
                     updated_packages.append(package_name)
                     logger.info(
                         f"Package '{package_name}' needs update: {current_info['ref']} -> {source_config['ref']}"
@@ -136,11 +146,15 @@ class PackageBuilder:
 
         return updated_packages
 
-    def _generate_package_json(self, package_config: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_package_json(
+        self, package_config: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Generate package.json content from package configuration."""
         return self.unity_generator.generate_package_json(
             name=package_config["name"],
-            display_name=package_config.get("display_name", package_config["name"]),
+            display_name=package_config.get(
+                "display_name", package_config["name"]
+            ),
             version=package_config.get("version", "1.0.0"),
             description=package_config.get("description", ""),
             author=package_config.get("author", ""),

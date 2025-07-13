@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 class UnityGenerator:
     """Generates Unity-specific files for packages."""
 
-    def __init__(self, templates_dir: Path, config: Optional["ConfigManager"] = None):
+    def __init__(
+        self, templates_dir: Path, config: Optional["ConfigManager"] = None
+    ):
         """Initialize with templates directory and optional configuration."""
         self.templates_dir = Path(templates_dir)
         self.templates_dir.mkdir(parents=True, exist_ok=True)
@@ -108,7 +110,10 @@ class UnityGenerator:
         return asmdef
 
     def write_assembly_definition(
-        self, runtime_dir: Path, asmdef_name: str, asmdef_content: Dict[str, Any]
+        self,
+        runtime_dir: Path,
+        asmdef_name: str,
+        asmdef_content: Dict[str, Any],
     ) -> None:
         """Write assembly definition file to Runtime directory."""
         asmdef_path = runtime_dir / f"{asmdef_name}.asmdef"
@@ -151,7 +156,9 @@ class UnityGenerator:
 
         return f"fileFormatVersion: 2\\nguid: {guid}\\n"
 
-    def write_meta_file(self, file_path: Path, file_type: str = "DefaultAsset") -> None:
+    def write_meta_file(
+        self, file_path: Path, file_type: str = "DefaultAsset"
+    ) -> None:
         """Write .meta file for a given file or directory."""
         meta_path = Path(str(file_path) + ".meta")
         meta_content = self.generate_meta_file(file_path, file_type)
@@ -199,7 +206,9 @@ class UnityGenerator:
 
         return type_mapping.get(suffix, "DefaultAsset")
 
-    def organize_runtime_structure(self, source_dir: Path, package_dir: Path) -> Path:
+    def organize_runtime_structure(
+        self, source_dir: Path, package_dir: Path
+    ) -> Path:
         """Organize files into Unity package structure with Runtime folder."""
         runtime_dir = package_dir / "Runtime"
         runtime_dir.mkdir(parents=True, exist_ok=True)
@@ -212,13 +221,17 @@ class UnityGenerator:
                 if item.is_file():
                     shutil.copy2(item, runtime_dir)
                 elif item.is_dir():
-                    shutil.copytree(item, runtime_dir / item.name, dirs_exist_ok=True)
+                    shutil.copytree(
+                        item, runtime_dir / item.name, dirs_exist_ok=True
+                    )
 
         # Remove C# project files that aren't needed in Unity
         if self._should_remove_csharp_project_files():
             self._remove_csharp_project_files(runtime_dir)
 
-        logger.info(f"Organized source files into Runtime structure at {runtime_dir}")
+        logger.info(
+            f"Organized source files into Runtime structure at {runtime_dir}"
+        )
         return runtime_dir
 
     def _should_remove_csharp_project_files(self) -> bool:
@@ -227,12 +240,12 @@ class UnityGenerator:
             return True  # Default to removing project files
 
         build_settings = self.config.get_build_settings()
-        return build_settings.get("remove_csharp_project_files", True)
+        return bool(build_settings.get("remove_csharp_project_files", True))
 
     def _remove_csharp_project_files(self, directory: Path) -> None:
         """Remove C# project files that aren't needed in Unity packages."""
         import shutil
-        
+
         # Define C# project file extensions to remove
         csharp_project_extensions = [
             ".csproj",  # C# project files
@@ -295,4 +308,6 @@ class UnityGenerator:
                     files_removed += 1
 
         if files_removed > 0:
-            logger.info(f"Removed {files_removed} C# project files from Unity package")
+            logger.info(
+                f"Removed {files_removed} C# project files from Unity package"
+            )

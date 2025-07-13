@@ -55,7 +55,9 @@ def test_config_manager_load(temp_config_dir: Path):
 
     package_config = config.get_package_config("com.test.package")
     assert package_config is not None
-    assert package_config["source"]["url"] == "https://github.com/test/repo.git"
+    assert (
+        package_config["source"]["url"] == "https://github.com/test/repo.git"
+    )
     assert package_config["namespace"] == "Test.Package"
 
 

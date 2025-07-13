@@ -18,7 +18,7 @@ class ConfigChangeHandler(FileSystemEventHandler):
         """Initialize with callback function."""
         self.callback = callback
         self.changed_files: Set[Path] = set()
-        self.last_call_time = 0
+        self.last_call_time = 0.0
         self.debounce_delay = 1.0  # 1 second debounce
 
     def on_modified(self, event: FileSystemEvent) -> None:
@@ -60,7 +60,9 @@ class ConfigChangeHandler(FileSystemEventHandler):
 class FileWatcher:
     """Watches configuration directory for changes and triggers rebuilds."""
 
-    def __init__(self, config_dir: Path, callback: Callable[[List[Path]], None]):
+    def __init__(
+        self, config_dir: Path, callback: Callable[[List[Path]], None]
+    ):
         """Initialize file watcher."""
         self.config_dir = Path(config_dir)
         self.callback = callback
@@ -70,10 +72,14 @@ class FileWatcher:
     def start(self) -> None:
         """Start watching for file changes."""
         if not self.config_dir.exists():
-            logger.warning(f"Configuration directory does not exist: {self.config_dir}")
+            logger.warning(
+                f"Configuration directory does not exist: {self.config_dir}"
+            )
             return
 
-        self.observer.schedule(self.handler, str(self.config_dir), recursive=True)
+        self.observer.schedule(
+            self.handler, str(self.config_dir), recursive=True
+        )
 
         self.observer.start()
         logger.info(f"Started watching: {self.config_dir}")
@@ -90,11 +96,13 @@ class FileWatcher:
         self.observer.join()
         logger.info("File watcher stopped")
 
-    def __enter__(self):
+    def __enter__(self) -> "FileWatcher":
         """Context manager entry."""
         self.start()
         return self
 
-    def __exit__(self, exc_type: type, exc_val: Exception, exc_tb: object) -> None:
+    def __exit__(
+        self, exc_type: type, exc_val: Exception, exc_tb: object
+    ) -> None:
         """Context manager exit."""
         self.stop()

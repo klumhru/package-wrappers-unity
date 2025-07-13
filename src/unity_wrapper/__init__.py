@@ -1,4 +1,4 @@
-"""Unity Package Wrapper - Automatically build Unity packages from open source repositories."""
+"""Unity Package Wrapper - Automatically build Unity packages from OSS repos."""
 
 __version__ = "0.1.0"
 __author__ = "Your Name"

@@ -68,3 +68,15 @@ Global settings for the wrapper:
 - Assembly definitions have root namespace matching the package
 - All files and folders need corresponding .meta files
 - package.json follows Unity Package Manager schema
+
+## Python Code Style Guide
+This document outlines the coding style and conventions for Python code in the Unity Package Wrapper project. It is designed to ensure consistency, readability, and maintainability across the codebase.
+- Use PEP 8 style guide for Python code
+- Use type hints for all function parameters and return values
+- Follow consistent naming conventions (snake_case for variables and functions, CamelCase for classes)
+- Use docstrings for all public functions and classes
+- Use f-strings for string formatting (Python 3.6+)
+- Keep line length to a maximum of 79 characters
+- Use spaces around operators and after commas
+- Use 4 spaces for indentation (no tabs)
+- Use `flake8` for linting and `black` for formatting. Perform these checks before committing code.

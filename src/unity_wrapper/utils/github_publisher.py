@@ -6,7 +6,7 @@ import tarfile
 import tempfile
 import logging
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, cast
 import base64
 
 
@@ -55,10 +55,14 @@ class GitHubPublisher:
         package_name = package_json["name"]
         version = package_json["version"]
 
-        logger.info(f"Publishing {package_name}@{version} to GitHub Package Registry")
+        logger.info(
+            f"Publishing {package_name}@{version} to GitHub Package Registry"
+        )
 
         # Create tarball
-        with tempfile.NamedTemporaryFile(suffix=".tgz", delete=False) as temp_file:
+        with tempfile.NamedTemporaryFile(
+            suffix=".tgz", delete=False
+        ) as temp_file:
             tarball_path = Path(temp_file.name)
 
         try:
@@ -171,7 +175,7 @@ class GitHubPublisher:
         response = self.session.get(url)
 
         if response.status_code == 200:
-            return response.json()
+            return cast(Dict[str, Any], response.json())
         elif response.status_code == 404:
             return None
         else:
