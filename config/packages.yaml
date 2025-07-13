@@ -3,7 +3,7 @@
 
 packages:
   # Example package configuration
-  - name: "com.klumhru.unity-wrapper.google-protobuf"
+  - name: "com.klumhru.wrapper.google-protobuf"
     display_name: "Google Protobuf for Unity"
     description: "Protocol Buffers for Unity, a language-neutral, platform-neutral extensible mechanism for serializing structured data."
     version: "v31.1.0"
@@ -14,11 +14,28 @@ packages:
     extract_path: "csharp/src/Google.Protobuf"
     asmdef_name: "Google.Protobuf"
     namespace: "Google.Protobuf"
+    keywords: ["protobuf", "serialization", "unity"]
     asmdef_extra:
       allowUnsafeCode: true
     package_json_extra:
       license: "https://github.com/protocolbuffers/protobuf/blob/v31.1/LICENSE"
       homepage: "https://github.com/protocolbuffers/protobuf/tree/v31.1"
+
+  - name: "com.klumhru.wrapper.unitask"
+    display_name: "UniTask for Unity"
+    description: "A fast and efficient alternative to C# async/await for Unity."
+    version: "2.5.10"
+    source:
+      type: git
+      url: "https://github.com/Cysharp/UniTask.git"
+      ref: "2.5.10"
+    extract_path: "src/UniTask/Assets/Plugins/UniTask"
+    asmdef_name: "UniTask"
+    namespace: "Cysharp.Threading.Tasks"
+    keywords: ["async", "await", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/Cysharp/UniTask"
 
   # - name: "com.example.json-net"
   #   display_name: "JSON.NET for Unity"
