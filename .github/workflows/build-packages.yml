@@ -94,11 +94,12 @@ jobs:
           
       - name: Upload package artifacts
         if: steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != ''
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: unity-packages
           path: packages/
           retention-days: 30
+          include-hidden-files: false
           
       - name: Publish packages to GitHub Package Registry
         if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
