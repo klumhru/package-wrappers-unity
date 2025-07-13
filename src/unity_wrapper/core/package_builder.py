@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class PackageBuilder:
-    """Main orchestrator for building Unity packages from source repositories."""
+    """Main orchestrator for building Unity OSS Packages."""
 
     def __init__(
         self,
@@ -22,7 +22,7 @@ class PackageBuilder:
         output_dir: Path,
         work_dir: Optional[Path] = None,
     ):
-        """Initialize PackageBuilder with configuration and output directories."""
+        """Initialize PackageBuilder with configuration and output folders."""
         self.config = ConfigManager(config_path)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -96,7 +96,7 @@ class PackageBuilder:
         self.unity_generator.generate_all_meta_files(package_output_dir)
 
         logger.info(
-            f"Package '{package_name}' built successfully at {package_output_dir}"
+            f"Package '{package_name}' success: at {package_output_dir}"
         )
         return package_output_dir
 
@@ -138,7 +138,9 @@ class PackageBuilder:
                 ):
                     updated_packages.append(package_name)
                     logger.info(
-                        f"Package '{package_name}' needs update: {current_info['ref']} -> {source_config['ref']}"
+                        f"Package '{package_name}' needs update:"
+                        f" {current_info['ref']} ->"
+                        f" {source_config['ref']}"
                     )
             else:
                 # Repository doesn't exist, needs to be built

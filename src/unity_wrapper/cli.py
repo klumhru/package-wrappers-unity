@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
 @click.pass_context
 def cli(ctx: click.Context, config: str, output: str, verbose: bool) -> None:
-    """Unity Package Wrapper - Build Unity packages from open source repositories."""
+    """Unity Package Wrapper - Build OSS Unity Packages."""
     if verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
@@ -43,7 +43,7 @@ def cli(ctx: click.Context, config: str, output: str, verbose: bool) -> None:
 @click.argument("package_name", required=False)
 @click.pass_context
 def build(ctx: click.Context, package_name: Optional[str]) -> None:
-    """Build Unity packages. If package_name is specified, build only that package."""
+    """Build Unity packages. If package_name is specified, build only that."""
     config_path: Path = ctx.obj["config_path"]
     output_path: Path = ctx.obj["output_path"]
 
