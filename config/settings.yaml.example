@@ -1,0 +1,41 @@
+# Unity Package Wrapper Configuration
+
+# Global settings for the package wrapper
+templates_dir: "templates"
+output_dir: "packages"
+work_dir: ".unity_wrapper_temp"
+
+# GitHub Package Registry settings
+github:
+  # GitHub personal access token with packages:write permission
+  token: ""
+
+  # Registry URL (default for GitHub)
+  registry_url: "https://npm.pkg.github.com"
+
+  # GitHub owner (username or organization)
+  owner: ""
+
+  # Repository name where packages will be published
+  repository: ""
+
+# Default package settings
+defaults:
+  author: "Your Name <your.email@example.com>"
+  unity_version: "2019.4"
+  unity_release: "0f1"
+  package_type: "library"
+
+# Build settings
+build:
+  # Whether to automatically generate assembly definitions
+  auto_generate_asmdef: true
+
+  # Whether to automatically generate meta files
+  auto_generate_meta: true
+
+  # Whether to organize files into Runtime folder structure
+  auto_organize_runtime: true
+
+  # Whether to remove C# project files from Unity packages
+  remove_csharp_project_files: true
