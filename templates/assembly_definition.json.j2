@@ -1,0 +1,17 @@
+{
+  "name": "{{ name }}",
+  "rootNamespace": "{{ namespace }}",
+  "references": {{ references | tojson }},
+  "includePlatforms": {{ platforms | tojson }},
+  "excludePlatforms": [],
+  "allowUnsafeCode": {{ allow_unsafe_code | default(false) | tojson }},
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": {{ define_constraints | tojson }},
+  "versionDefines": {{ version_defines | tojson }},
+  "noEngineReferences": false
+  {%- for key, value in extra_fields.items() %},
+  "{{ key }}": {{ value | tojson }}
+  {%- endfor %}
+}

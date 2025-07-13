@@ -1,0 +1,77 @@
+# Unity Package Configurations
+# Define packages to be built from open source repositories
+
+packages:
+  # Example package configuration
+  - name: "com.klumhru.unity-wrapper.google-protobuf"
+    display_name: "Google Protobuf for Unity"
+    description: "Protocol Buffers for Unity, a language-neutral, platform-neutral extensible mechanism for serializing structured data."
+    version: "v31.1.0"
+    source:
+      type: git
+      url: "https://github.com/protocolbuffers/protobuf.git"
+      ref: "v31.1"
+    extract_path: "csharp/src/Google.Protobuf"
+    asmdef_name: "Google.Protobuf"
+    namespace: "Google.Protobuf"
+    asmdef_extra:
+      allowUnsafeCode: true
+    package_json_extra:
+      license: "https://github.com/protocolbuffers/protobuf/blob/v31.1/LICENSE"
+      homepage: "https://github.com/protocolbuffers/protobuf/tree/v31.1"
+
+  # - name: "com.example.json-net"
+  #   display_name: "JSON.NET for Unity"
+  #   description: "High-performance JSON framework for .NET"
+  #   version: "1.0.0"
+  #   author: "Example Author <author@example.com>"
+
+  #   # Source repository configuration
+  #   source:
+  #     type: git
+  #     url: "https://github.com/JamesNK/Newtonsoft.Json.git"
+  #     ref: "master"
+
+  #   # Path within the repository to extract
+  #   extract_path: "Src/Newtonsoft.Json"
+
+  #   # C# namespace for the package
+  #   namespace: "Newtonsoft.Json"
+
+  #   # Assembly definition name (optional, defaults to package name)
+  #   asmdef_name: "Newtonsoft.Json"
+
+  #   # Package dependencies (Unity packages)
+  #   dependencies:
+  #     "com.unity.nuget.newtonsoft-json": "3.0.2"
+
+  #   # Keywords for package discovery
+  #   keywords: ["json", "serialization", "parsing"]
+
+  #   # Assembly references (other assemblies this package depends on)
+  #   assembly_references: []
+
+  #   # Define constraints for conditional compilation
+  #   define_constraints: []
+
+  #   # Platform-specific settings
+  #   platforms: []
+
+  #   # Additional fields for package.json
+  #   package_json_extra:
+  #     license: "MIT"
+  #     homepage: "https://www.newtonsoft.com/json"
+
+  #   # Additional fields for assembly definition
+  #   asmdef_extra:
+  #     allowUnsafeCode: true
+
+  # Add more packages here following the same structure
+  # - name: "com.example.another-package"
+  #   display_name: "Another Package"
+  #   source:
+  #     type: git
+  #     url: "https://github.com/example/another-repo.git"
+  #     ref: "main"
+  #   extract_path: "src"
+  #   namespace: "Example.Another"
