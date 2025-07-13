@@ -231,6 +231,8 @@ class UnityGenerator:
 
     def _remove_csharp_project_files(self, directory: Path) -> None:
         """Remove C# project files that aren't needed in Unity packages."""
+        import shutil
+        
         # Define C# project file extensions to remove
         csharp_project_extensions = [
             ".csproj",  # C# project files
@@ -276,8 +278,6 @@ class UnityGenerator:
                     files_removed += 1
                 elif file_path.is_dir() and ext.startswith("."):
                     # Remove directories like .vs, .vscode, .idea
-                    import shutil
-
                     shutil.rmtree(file_path)
                     logger.debug(
                         f"Removed C# project directory: {file_path.relative_to(directory)}"
