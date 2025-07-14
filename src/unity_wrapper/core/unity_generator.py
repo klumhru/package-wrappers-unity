@@ -273,6 +273,10 @@ class UnityGenerator:
         if self._should_remove_csharp_project_files():
             self._remove_csharp_project_files(runtime_dir)
 
+        # Fix global/file-scoped namespaces to Unity-compatible block syntax
+        if self._should_fix_global_namespaces():
+            self._fix_global_namespaces(runtime_dir)
+
         return runtime_dir
 
     def _should_remove_csharp_project_files(self) -> bool:
@@ -355,3 +359,71 @@ class UnityGenerator:
             logger.info(
                 f"Removed {files_removed} C# project files from Unity package"
             )
+
+    def _fix_global_namespaces(self, directory: Path) -> None:
+        """Fix C# files that use file-scoped namespace syntax."""
+        import re
+
+        files_fixed = 0
+
+        # Find all C# files that use file-scoped namespace syntax
+        for cs_file in directory.rglob("*.cs"):
+            if cs_file.is_file():
+                try:
+                    with open(cs_file, "r", encoding="utf-8") as f:
+                        content = f.read()
+
+                    # Pattern to match file-scoped namespace declarations
+                    # Matches "namespace Some.Namespace;" at the start of a line
+                    file_scoped_pattern = re.compile(
+                        r"^namespace\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*;\s*$",
+                        re.MULTILINE,
+                    )
+
+                    match = file_scoped_pattern.search(content)
+                    if match:
+                        namespace_name = match.group(1)
+                        namespace_line = match.group(0)
+
+                        # Replace file-scoped namespace with block-scoped namespace
+                        # Remove the semicolon and replace with opening brace
+                        new_namespace_line = f"namespace {namespace_name}\n{{"
+
+                        # Replace the namespace declaration
+                        new_content = content.replace(
+                            namespace_line, new_namespace_line, 1
+                        )
+
+                        # Add closing brace at the end of the file for the namespace
+                        # Always add a namespace closing brace since we converted 
+                        # from file-scoped to block-scoped namespace
+                        stripped_content = new_content.rstrip()
+                        new_content = stripped_content + "\n}\n"
+
+                        # Write the modified content back
+                        with open(cs_file, "w", encoding="utf-8") as f:
+                            f.write(new_content)
+
+                        logger.debug(
+                            f"Fixed file-scoped namespace in: "
+                            f"{cs_file.relative_to(directory)}"
+                        )
+                        files_fixed += 1
+
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to process namespace in {cs_file}: {e}"
+                    )
+
+        if files_fixed > 0:
+            logger.info(
+                f"Fixed {files_fixed} C# files with file-scoped namespaces"
+            )
+
+    def _should_fix_global_namespaces(self) -> bool:
+        """Check if global namespace fixing should be performed (config)."""
+        if not self.config:
+            return True  # Default to fixing namespaces
+
+        build_settings = self.config.get_build_settings()
+        return bool(build_settings.get("fix_global_namespaces", True))
