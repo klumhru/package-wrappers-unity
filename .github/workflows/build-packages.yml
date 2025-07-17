@@ -43,6 +43,9 @@ jobs:
   build-packages:
     needs: check-changes
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write  # Required for publishing to GitHub Package Registry
     if: needs.check-changes.outputs.packages-changed == 'true' || needs.check-changes.outputs.config-changed == 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
 
     steps:
