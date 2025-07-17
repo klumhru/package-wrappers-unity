@@ -90,12 +90,7 @@ setup-config: ## Create example configuration files
 	fi
 	@echo "Configuration files created in config/"
 
-dev-setup: install-dev setup-config ## Complete development setup
-	@echo "Development environment setup complete!"
-	@echo "Next steps:"
-	@echo "1. Configure your GitHub token in config/settings.yaml"
-	@echo "2. Add package definitions to config/packages.yaml"
-	@echo "3. Run 'make build' to build packages"
+dev-setup: setup ## Complete development setup (alias for setup)
 
 # Docker targets (optional)
 docker-build: ## Build Docker image
@@ -106,7 +101,30 @@ docker-run: ## Run in Docker container
 
 # Git hooks
 install-hooks: ## Install pre-commit hooks
+	@echo "Installing pre-commit hooks..."
 	pre-commit install
+	@echo "✓ Pre-commit hooks installed!"
+	@echo "Hooks will run automatically on 'git commit'"
+	@echo "To run hooks manually: make run-hooks"
 
 run-hooks: ## Run pre-commit hooks on all files
+	@echo "Running pre-commit hooks on all files..."
 	pre-commit run --all-files
+
+# Quality assurance target that runs all checks
+qa: format lint test ## Run all quality assurance checks (format, lint, test)
+	@echo "✓ All quality checks passed!"
+
+# Setup target that includes pre-commit hooks
+setup: install-dev setup-config install-hooks ## Complete development setup with pre-commit hooks
+	@echo "✓ Development environment setup complete!"
+	@echo ""
+	@echo "Pre-commit hooks installed and will run on each commit:"
+	@echo "  - Code formatting (black)"
+	@echo "  - Linting (flake8, mypy)"
+	@echo "  - Tests (pytest with 50% coverage requirement)"
+	@echo ""
+	@echo "Next steps:"
+	@echo "1. Configure your GitHub token in config/settings.yaml"
+	@echo "2. Add package definitions to config/packages.yaml"
+	@echo "3. Run 'make build' to build packages"
