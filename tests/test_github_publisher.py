@@ -81,11 +81,12 @@ def test_github_publisher_requires_owner() -> None:
         mock_run.return_value.returncode = 0
 
         # Clear any GitHub environment variables that might be set in CI
-        with patch.dict(os.environ, {
-            "GITHUB_TOKEN": "test-token"
-        }, clear=True):
+        with patch.dict(
+            os.environ, {"GITHUB_TOKEN": "test-token"}, clear=True
+        ):
             with pytest.raises(
-                ValueError, match="Owner is required for GitHub Package Registry"
+                ValueError,
+                match="Owner is required for GitHub Package Registry",
             ):
                 GitHubPublisher()
 
@@ -194,7 +195,6 @@ def test_github_publisher_publish_package_success() -> None:
         "builtins.open",
         mock_open(read_data='{"name": "test-package", "version": "1.0.0"}'),
     ):
-
         # Mock npm version check
         mock_run.side_effect = [
             MagicMock(stdout="10.0.0", returncode=0),  # npm version check
@@ -213,7 +213,6 @@ def test_github_publisher_publish_package_success() -> None:
         with patch.object(publisher, "_copy_package"), patch.object(
             publisher, "_update_package_json_for_github"
         ), patch.object(publisher, "_configure_npm"):
-
             # Should not raise any exception
             publisher.publish_package(package_dir)
 
@@ -241,7 +240,6 @@ def test_github_publisher_publish_package_auth_error() -> None:
         "builtins.open",
         mock_open(read_data='{"name": "test-package", "version": "1.0.0"}'),
     ):
-
         # Mock npm version check success, publish auth failure
         auth_error = subprocess.CalledProcessError(
             1, "npm", stderr="ENEEDAUTH: need auth"
@@ -260,7 +258,6 @@ def test_github_publisher_publish_package_auth_error() -> None:
         with patch.object(publisher, "_copy_package"), patch.object(
             publisher, "_update_package_json_for_github"
         ), patch.object(publisher, "_configure_npm"):
-
             with pytest.raises(RuntimeError, match="Authentication required"):
                 publisher.publish_package(package_dir)
 
@@ -270,14 +267,13 @@ def test_github_publisher_configure_npm() -> None:
     with patch("subprocess.run") as mock_run, patch(
         "builtins.open", mock_open()
     ) as mock_file:
-
         mock_run.return_value.stdout = "10.0.0"
         mock_run.return_value.returncode = 0
 
         publisher = GitHubPublisher(token="test-token", owner="testowner")
         working_dir = Path("/tmp/test")
 
-        publisher._configure_npm(working_dir)
+        publisher._configure_npm(working_dir)  # type: ignore
 
         # Verify .npmrc content was written
         mock_file.assert_called()
@@ -297,14 +293,15 @@ def test_github_publisher_update_package_json() -> None:
     with patch("subprocess.run") as mock_run, patch(
         "builtins.open", mock_open(read_data=original_package_json)
     ) as mock_file:
-
         mock_run.return_value.stdout = "10.0.0"
         mock_run.return_value.returncode = 0
 
         publisher = GitHubPublisher(token="test-token", owner="testowner")
         package_json_path = Path("/fake/package.json")
 
-        publisher._update_package_json_for_github(package_json_path)
+        publisher._update_package_json_for_github(  # type: ignore
+            package_json_path
+        )
 
         # Verify the file was read and written
         mock_file.assert_called()

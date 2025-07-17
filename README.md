@@ -172,8 +172,15 @@ make clean                          # Clean temporary files
 - Git
 
 ```bash
+# Complete development setup with pre-commit hooks
+make setup
+
+# Or step by step:
 # Install development dependencies
 pip install -e ".[dev]"
+
+# Install pre-commit hooks (runs quality checks on every commit)
+make install-hooks
 
 # Run tests
 pytest tests/ -v --cov=unity_wrapper
@@ -184,9 +191,18 @@ black src tests
 # Type checking
 mypy src
 
-# Install pre-commit hooks
-pre-commit install
+# Run all quality checks
+make qa
 ```
+
+### Code Quality Automation
+This project uses [pre-commit hooks](docs/pre-commit-hooks.md) that automatically run on every commit:
+- ✅ **Code formatting** with Black
+- ✅ **Linting** with flake8 and mypy
+- ✅ **Testing** with 50%+ coverage requirement
+- ✅ **File validation** and cleanup
+
+Pre-commit hooks ensure all committed code meets quality standards!
 
 ## 🎯 Unity Package Output Structure
 
