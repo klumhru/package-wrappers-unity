@@ -5,11 +5,11 @@ import tempfile
 import yaml
 from pathlib import Path
 from unity_wrapper.core.config_manager import ConfigManager
-from typing import Dict, Any
+from typing import Dict, Any, Generator
 
 
 @pytest.fixture
-def temp_config_dir():
+def temp_config_dir() -> Generator[Path, None, None]:
     """Create a temporary configuration directory."""
     with tempfile.TemporaryDirectory() as temp_dir:
         config_dir = Path(temp_dir)
@@ -46,7 +46,7 @@ def temp_config_dir():
         yield config_dir
 
 
-def test_config_manager_load(temp_config_dir: Path):
+def test_config_manager_load(temp_config_dir: Path) -> None:
     """Test ConfigManager loads configuration correctly."""
     config = ConfigManager(temp_config_dir)
 
@@ -61,7 +61,7 @@ def test_config_manager_load(temp_config_dir: Path):
     assert package_config["namespace"] == "Test.Package"
 
 
-def test_config_manager_github_settings(temp_config_dir: Path):
+def test_config_manager_github_settings(temp_config_dir: Path) -> None:
     """Test ConfigManager returns GitHub settings."""
     config = ConfigManager(temp_config_dir)
 
@@ -70,7 +70,7 @@ def test_config_manager_github_settings(temp_config_dir: Path):
     assert github_settings["repository"] == "testrepo"
 
 
-def test_config_manager_add_remove_package(temp_config_dir: Path):
+def test_config_manager_add_remove_package(temp_config_dir: Path) -> None:
     """Test adding and removing packages."""
     config = ConfigManager(temp_config_dir)
 

@@ -3,13 +3,14 @@
 import tempfile
 from pathlib import Path
 import pytest
+from typing import Dict, List, Union
 
 from unity_wrapper.core.nuget_manager import NuGetManager
 from unity_wrapper.core.config_manager import ConfigManager
 from unity_wrapper.core.package_builder import PackageBuilder
 
 
-def test_nuget_manager_download():
+def test_nuget_manager_download() -> None:
     """Test that NuGet manager can download packages."""
     with tempfile.TemporaryDirectory() as temp_dir:
         work_dir = Path(temp_dir)
@@ -28,13 +29,15 @@ def test_nuget_manager_download():
         assert any(dll.name == "System.IO.Pipelines.dll" for dll in dlls)
 
 
-def test_nuget_package_config():
+def test_nuget_package_config() -> None:
     """Test that NuGet package configuration works."""
     with tempfile.TemporaryDirectory() as temp_dir:
         config_dir = Path(temp_dir)
 
         # Create test config files
-        packages_config: dict[str, list[dict[str, str | dict[str, str]]]] = {
+        packages_config: Dict[
+            str, List[Dict[str, Union[str, Dict[str, str]]]]
+        ] = {
             "packages": [
                 {
                     "name": "com.test.git-package",
@@ -91,7 +94,7 @@ def test_nuget_package_config():
         assert nuget_config["framework"] == "netstandard2.0"
 
 
-def test_nuget_package_building():
+def test_nuget_package_building() -> None:
     """Test that NuGet packages can be built (integration test)."""
     with tempfile.TemporaryDirectory() as temp_dir:
         config_dir = Path(temp_dir) / "config"
@@ -103,7 +106,7 @@ def test_nuget_package_building():
         work_dir.mkdir()
 
         # Create test config files
-        packages_config: dict[str, list[dict[str, str | list[str]]]] = {
+        packages_config: Dict[str, List[Dict[str, Union[str, List[str]]]]] = {
             "nuget_packages": [
                 {
                     "name": "com.test.system-io-pipelines",
