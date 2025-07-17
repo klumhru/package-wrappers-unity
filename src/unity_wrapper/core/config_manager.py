@@ -59,12 +59,54 @@ class ConfigManager:
 
         return None
 
+    def get_nuget_package_config(
+        self, package_name: str
+    ) -> Optional[Dict[str, Any]]:
+        """Get configuration for a specific NuGet package."""
+        nuget_packages = self.packages_config.get("nuget_packages", [])
+
+        for package in nuget_packages:
+            if package.get("name") == package_name:
+                return cast(Dict[str, Any], package)
+
+        return None
+
     def get_package_names(self) -> List[str]:
         """Get list of all configured package names."""
         packages = self.packages_config.get("packages", [])
         return [
             package.get("name") for package in packages if package.get("name")
         ]
+
+    def get_all_package_names(self) -> List[str]:
+        """Get list of all configured package names (both Git and NuGet)."""
+        git_packages = self.packages_config.get("packages", [])
+        nuget_packages = self.packages_config.get("nuget_packages", [])
+
+        all_names: List[str] = []
+
+        # Add Git packages
+        for package in git_packages:
+            name = package.get("name")
+            if name:
+                all_names.append(name)
+
+        # Add NuGet packages
+        for package in nuget_packages:
+            name = package.get("name")
+            if name:
+                all_names.append(name)
+
+        return all_names
+
+    def get_package_type(self, package_name: str) -> str:
+        """Get the type of package (git or nuget)."""
+        if self.get_package_config(package_name):
+            return "git"
+        elif self.get_nuget_package_config(package_name):
+            return "nuget"
+        else:
+            return "unknown"
 
     def get_templates_dir(self) -> Path:
         """Get templates directory path."""

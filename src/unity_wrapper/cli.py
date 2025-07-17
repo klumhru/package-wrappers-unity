@@ -263,21 +263,49 @@ def list_packages(ctx: click.Context) -> None:
 
     try:
         config_manager = ConfigManager(config_path)
-        package_names = config_manager.get_package_names()
+        package_names = config_manager.get_all_package_names()
 
         if package_names:
             click.echo(f"Configured packages ({len(package_names)}):")
             for package_name in package_names:
-                package_config = config_manager.get_package_config(
-                    package_name
-                )
-                if package_config is not None:
-                    source = package_config["source"]
-                    click.echo(
-                        f"  - {package_name} ({source['url']}@{source['ref']})"
+                package_type = config_manager.get_package_type(package_name)
+
+                if package_type == "git":
+                    package_config = config_manager.get_package_config(
+                        package_name
                     )
+                    if package_config is not None:
+                        source = package_config["source"]
+                        click.echo(
+                            f"  - {package_name} (Git: {source['url']}"
+                            f"@{source['ref']})"
+                        )
+                    else:
+                        click.echo(
+                            f"  - {package_name} (Git configuration error)"
+                        )
+
+                elif package_type == "nuget":
+                    package_config = config_manager.get_nuget_package_config(
+                        package_name
+                    )
+                    if package_config is not None:
+                        nuget_id = package_config["nuget_id"]
+                        version = package_config["version"]
+                        framework = package_config.get(
+                            "framework", "netstandard2.0"
+                        )
+                        click.echo(
+                            f"  - {package_name} (NuGet: {nuget_id}"
+                            f"@{version}/{framework})"
+                        )
+                    else:
+                        click.echo(
+                            f"  - {package_name} (NuGet configuration error)"
+                        )
+
                 else:
-                    click.echo(f"  - {package_name} (configuration error)")
+                    click.echo(f"  - {package_name} (unknown type)")
         else:
             click.echo("No packages configured")
 

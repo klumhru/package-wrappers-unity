@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 from .git_manager import GitManager
+from .nuget_manager import NuGetManager
 from .unity_generator import UnityGenerator
 from .config_manager import ConfigManager
 
@@ -31,6 +32,9 @@ class PackageBuilder:
         self.work_dir = work_dir or (Path.cwd() / ".unity_wrapper_temp")
         self.git_manager = GitManager(self.work_dir)
 
+        # Set up NuGet manager
+        self.nuget_manager = NuGetManager(self.work_dir / "nuget")
+
         # Set up Unity file generator
         templates_dir = self.config.get_templates_dir()
         self.unity_generator = UnityGenerator(templates_dir, self.config)
@@ -39,11 +43,24 @@ class PackageBuilder:
         """Build a single Unity package."""
         logger.info(f"Building package: {package_name}")
 
-        # Get package configuration
+        # Determine package type and get configuration
+        package_type = self.config.get_package_type(package_name)
+
+        if package_type == "git":
+            return self._build_git_package(package_name)
+        elif package_type == "nuget":
+            return self._build_nuget_package(package_name)
+        else:
+            raise ValueError(
+                f"Package configuration not found: {package_name}"
+            )
+
+    def _build_git_package(self, package_name: str) -> Path:
+        """Build a Unity package from a Git repository."""
         package_config = self.config.get_package_config(package_name)
         if not package_config:
             raise ValueError(
-                f"Package configuration not found: {package_name}"
+                f"Git package configuration not found: {package_name}"
             )
 
         # Extract source configuration
@@ -100,9 +117,63 @@ class PackageBuilder:
         )
         return package_output_dir
 
+    def _build_nuget_package(self, package_name: str) -> Path:
+        """Build a Unity package from a NuGet package."""
+        package_config = self.config.get_nuget_package_config(package_name)
+        if not package_config:
+            raise ValueError(
+                f"NuGet package configuration not found: {package_name}"
+            )
+
+        # Extract NuGet package configuration
+        nuget_id = package_config["nuget_id"]
+        version = package_config["version"]
+        framework = package_config.get("framework", "netstandard2.0")
+
+        # Download NuGet package
+        package_path = self.nuget_manager.download_package(
+            nuget_id, version, framework
+        )
+
+        # Extract DLL files
+        dll_files = self.nuget_manager.extract_dlls(package_path, framework)
+        if not dll_files:
+            raise FileNotFoundError(
+                f"No DLL files found in NuGet package {nuget_id} v{version} "
+                f"for framework {framework}"
+            )
+
+        # Create package output directory
+        package_output_dir = self.output_dir / package_name
+        if package_output_dir.exists():
+            shutil.rmtree(package_output_dir)
+        package_output_dir.mkdir(parents=True)
+
+        # Organize DLLs into Plugins structure
+        plugins_dir = self.unity_generator.organize_plugins_structure(
+            dll_files, package_output_dir
+        )
+
+        # Generate package.json
+        package_json_content = self._generate_package_json(package_config)
+        self.unity_generator.write_package_json(
+            package_output_dir, package_json_content
+        )
+
+        # Generate meta files for DLLs (no asmdef for NuGet packages)
+        self.unity_generator.generate_dll_meta_files(plugins_dir)
+
+        # Generate meta files for directories
+        self.unity_generator.generate_all_meta_files(package_output_dir)
+
+        logger.info(
+            f"Package '{package_name}' success: at {package_output_dir}"
+        )
+        return package_output_dir
+
     def build_all_packages(self) -> List[Path]:
         """Build all configured packages."""
-        package_names = self.config.get_package_names()
+        package_names = self.config.get_all_package_names()
         built_packages: List[Path] = []
 
         for package_name in package_names:
@@ -119,34 +190,48 @@ class PackageBuilder:
     def check_for_updates(self) -> List[str]:
         """Check which packages need updates based on ref changes."""
         updated_packages: List[str] = []
-        package_names = self.config.get_package_names()
+        package_names = self.config.get_all_package_names()
 
         for package_name in package_names:
-            package_config = self.config.get_package_config(package_name)
-            if package_config is None:
-                continue
+            package_type = self.config.get_package_type(package_name)
 
-            source_config = package_config["source"]
-
-            # Check if repository exists and if ref has changed
-            repo_path = self.work_dir / package_name
-            if repo_path.exists():
-                current_info = self.git_manager.get_repo_info(package_name)
-                if (
-                    current_info
-                    and current_info["ref"] != source_config["ref"]
-                ):
+            if package_type == "git":
+                if self._check_git_package_updates(package_name):
                     updated_packages.append(package_name)
-                    logger.info(
-                        f"Package '{package_name}' needs update:"
-                        f" {current_info['ref']} ->"
-                        f" {source_config['ref']}"
-                    )
-            else:
-                # Repository doesn't exist, needs to be built
+            elif package_type == "nuget":
+                # For NuGet packages, we'll assume they need updates
+                # In the future, we could check for new versions
                 updated_packages.append(package_name)
+                logger.info(
+                    f"NuGet package '{package_name}' marked for update"
+                )
 
         return updated_packages
+
+    def _check_git_package_updates(self, package_name: str) -> bool:
+        """Check if a Git package needs updates."""
+        package_config = self.config.get_package_config(package_name)
+        if package_config is None:
+            return False
+
+        source_config = package_config["source"]
+
+        # Check if repository exists and if ref has changed
+        repo_path = self.work_dir / package_name
+        if repo_path.exists():
+            current_info = self.git_manager.get_repo_info(package_name)
+            if current_info and current_info["ref"] != source_config["ref"]:
+                logger.info(
+                    f"Package '{package_name}' needs update:"
+                    f" {current_info['ref']} ->"
+                    f" {source_config['ref']}"
+                )
+                return True
+        else:
+            # Repository doesn't exist, needs to be built
+            return True
+
+        return False
 
     def _generate_package_json(
         self, package_config: Dict[str, Any]
@@ -188,6 +273,7 @@ class PackageBuilder:
     def cleanup(self) -> None:
         """Clean up temporary files and repositories."""
         self.git_manager.cleanup()
+        self.nuget_manager.cleanup()
         logger.info("PackageBuilder cleanup completed")
 
     def __enter__(self) -> "PackageBuilder":

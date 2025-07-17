@@ -151,6 +151,13 @@ class UnityGenerator:
         elif file_path.suffix == ".asmdef":
             meta_content["importer"] = "AssemblyDefinitionImporter"
 
+        elif file_path.suffix == ".dll":
+            meta_content["importer"] = "PluginImporter"
+            meta_content["platformData"] = []
+            meta_content["userData"] = ""
+            meta_content["assetBundleName"] = ""
+            meta_content["assetBundleVariant"] = ""
+
         elif file_path.is_dir():
             meta_content["importer"] = "DefaultImporter"
             meta_content["folderAsset"] = "yes"
@@ -203,6 +210,7 @@ class UnityGenerator:
         type_mapping = {
             ".cs": "MonoImporter",
             ".asmdef": "AssemblyDefinitionImporter",
+            ".dll": "PluginImporter",
             ".json": "TextAssetImporter",
             ".txt": "TextAssetImporter",
             ".md": "TextAssetImporter",
@@ -248,10 +256,12 @@ class UnityGenerator:
                             )
 
             logger.info(
-                f"Found existing Runtime folder, copied directly to {runtime_dir}"
+                f"Found existing Runtime folder, copied directly to "
+                f"{runtime_dir}"
             )
         else:
-            # Original behavior: create Runtime folder and copy all content into it
+            # Original behavior: create Runtime folder
+            # and copy all content into it
             runtime_dir = package_dir / "Runtime"
             runtime_dir.mkdir(parents=True, exist_ok=True)
 
@@ -266,7 +276,8 @@ class UnityGenerator:
                         )
 
             logger.info(
-                f"Organized source files into Runtime structure at {runtime_dir}"
+                f"Organized source files into Runtime structure at "
+                f"{runtime_dir}"
             )
 
         # Remove C# project files that aren't needed in Unity
@@ -278,6 +289,40 @@ class UnityGenerator:
             self._fix_global_namespaces(runtime_dir)
 
         return runtime_dir
+
+    def organize_plugins_structure(
+        self, dll_files: List[Path], package_dir: Path
+    ) -> Path:
+        """Organize DLL files into Unity package Plugins folder structure."""
+        import shutil
+
+        # Create Plugins directory
+        plugins_dir = package_dir / "Plugins"
+        plugins_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy DLL files to Plugins directory
+        for dll_file in dll_files:
+            if dll_file.is_file():
+                dest_path = plugins_dir / dll_file.name
+                shutil.copy2(dll_file, dest_path)
+                logger.debug(f"Copied DLL: {dll_file.name} to Plugins folder")
+
+        logger.info(
+            f"Organized {len(dll_files)} DLL files into Plugins structure at "
+            f"{plugins_dir}"
+        )
+        return plugins_dir
+
+    def generate_dll_meta_files(self, plugins_dir: Path) -> None:
+        """Generate Unity meta files for DLL files in Plugins directory."""
+        dll_files = list(plugins_dir.glob("*.dll"))
+
+        for dll_file in dll_files:
+            if dll_file.is_file():
+                self.write_meta_file(dll_file, "PluginImporter")
+                logger.debug(f"Generated meta file for DLL: {dll_file.name}")
+
+        logger.info(f"Generated meta files for {len(dll_files)} DLL files")
 
     def _should_remove_csharp_project_files(self) -> bool:
         """Check if C# project files should be removed (config)."""
@@ -364,6 +409,14 @@ class UnityGenerator:
         """Fix C# files that use file-scoped namespace syntax."""
         import re
 
+        # Pattern to match file-scoped namespace declarations
+        # Matches "namespace Some.Namespace;" at the start
+        # of a line
+        file_scoped_pattern = re.compile(
+            r"^namespace\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_]"
+            r"[a-zA-Z0-9_]*)*)\s*;\s*$",
+            re.MULTILINE,
+        )
         files_fixed = 0
 
         # Find all C# files that use file-scoped namespace syntax
@@ -373,19 +426,13 @@ class UnityGenerator:
                     with open(cs_file, "r", encoding="utf-8") as f:
                         content = f.read()
 
-                    # Pattern to match file-scoped namespace declarations
-                    # Matches "namespace Some.Namespace;" at the start of a line
-                    file_scoped_pattern = re.compile(
-                        r"^namespace\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*;\s*$",
-                        re.MULTILINE,
-                    )
-
                     match = file_scoped_pattern.search(content)
                     if match:
                         namespace_name = match.group(1)
                         namespace_line = match.group(0)
 
-                        # Replace file-scoped namespace with block-scoped namespace
+                        # Replace file-scoped namespace with block-scoped
+                        # namespace
                         # Remove the semicolon and replace with opening brace
                         new_namespace_line = f"namespace {namespace_name}\n{{"
 
@@ -394,9 +441,10 @@ class UnityGenerator:
                             namespace_line, new_namespace_line, 1
                         )
 
-                        # Add closing brace at the end of the file for the namespace
-                        # Always add a namespace closing brace since we converted 
-                        # from file-scoped to block-scoped namespace
+                        # Add closing brace at the end of the file for the
+                        # namespace
+                        # Always add a namespace closing brace since we
+                        # converted from file-scoped to block-scoped namespace
                         stripped_content = new_content.rstrip()
                         new_content = stripped_content + "\n}\n"
 
