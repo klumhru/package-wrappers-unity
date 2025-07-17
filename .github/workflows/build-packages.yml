@@ -107,7 +107,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Publishing packages to GitHub Package Registry..."
-          unity-wrapper publish --token "$GITHUB_TOKEN"
+          unity-wrapper publish
 
   test:
     runs-on: ubuntu-latest

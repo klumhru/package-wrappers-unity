@@ -141,7 +141,11 @@ def check(ctx: click.Context) -> None:
 def publish(
     ctx: click.Context, package_name: Optional[str], token: Optional[str]
 ) -> None:
-    """Publish packages to GitHub Package Registry."""
+    """Publish packages to GitHub Package Registry.
+
+    Note: This command requires Node.js and npm to be installed.
+    You can install them from https://nodejs.org/
+    """
     config_path: Path = ctx.obj["config_path"]
     output_path: Path = ctx.obj["output_path"]
 
@@ -149,12 +153,28 @@ def publish(
         config_manager = ConfigManager(config_path)
         github_settings = config_manager.get_github_settings()
 
-        publisher = GitHubPublisher(
-            token=token or github_settings.get("token"),
-            registry_url=github_settings.get("registry_url"),
-            owner=github_settings.get("owner"),
-            repository=github_settings.get("repository"),
-        )
+        # Use provided token, or token from settings (if not empty),
+        # or None to let GitHubPublisher use environment
+        settings_token = github_settings.get("token")
+        final_token = token or (settings_token if settings_token else None)
+
+        try:
+            publisher = GitHubPublisher(
+                token=final_token,
+                registry_url=github_settings.get("registry_url"),
+                owner=github_settings.get("owner"),
+                repository=github_settings.get("repository"),
+            )
+        except RuntimeError as e:
+            if "npm command not found" in str(e):
+                click.echo(
+                    "Error: npm is required for publishing packages.\n"
+                    "Please install Node.js and npm from https://nodejs.org/",
+                    err=True,
+                )
+                sys.exit(1)
+            else:
+                raise
 
         if package_name:
             package_path: Path = output_path / package_name
