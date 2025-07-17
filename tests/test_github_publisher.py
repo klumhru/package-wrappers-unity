@@ -80,10 +80,14 @@ def test_github_publisher_requires_owner() -> None:
         mock_run.return_value.stdout = "10.0.0"
         mock_run.return_value.returncode = 0
 
-        with pytest.raises(
-            ValueError, match="Owner is required for GitHub Package Registry"
-        ):
-            GitHubPublisher(token="test-token")
+        # Clear any GitHub environment variables that might be set in CI
+        with patch.dict(os.environ, {
+            "GITHUB_TOKEN": "test-token"
+        }, clear=True):
+            with pytest.raises(
+                ValueError, match="Owner is required for GitHub Package Registry"
+            ):
+                GitHubPublisher()
 
 
 def test_github_publisher_requires_npm() -> None:
@@ -313,12 +317,14 @@ def test_github_publisher_detects_owner_from_repository() -> None:
         mock_run.return_value.stdout = "10.0.0"
         mock_run.return_value.returncode = 0
 
+        # Clear environment and set only what we want to test
         with patch.dict(
             os.environ,
             {
                 "GITHUB_TOKEN": "test-token",
                 "GITHUB_REPOSITORY": "testowner/testrepo",
             },
+            clear=True,
         ):
             publisher = GitHubPublisher()
 
@@ -334,12 +340,14 @@ def test_github_publisher_detects_owner_from_repository_owner() -> None:
         mock_run.return_value.stdout = "10.0.0"
         mock_run.return_value.returncode = 0
 
+        # Clear environment and set only what we want to test
         with patch.dict(
             os.environ,
             {
                 "GITHUB_TOKEN": "test-token",
                 "GITHUB_REPOSITORY_OWNER": "testowner",
             },
+            clear=True,
         ):
             publisher = GitHubPublisher()
 
@@ -353,12 +361,14 @@ def test_github_publisher_prefers_provided_owner_over_environment() -> None:
         mock_run.return_value.stdout = "10.0.0"
         mock_run.return_value.returncode = 0
 
+        # Clear environment and set only what we want to test
         with patch.dict(
             os.environ,
             {
                 "GITHUB_TOKEN": "test-token",
                 "GITHUB_REPOSITORY": "envowner/testrepo",
             },
+            clear=True,
         ):
             publisher = GitHubPublisher(owner="providedowner")
 
