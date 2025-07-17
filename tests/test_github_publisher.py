@@ -306,5 +306,78 @@ def test_github_publisher_update_package_json() -> None:
         mock_file.assert_called()
 
 
+def test_github_publisher_detects_owner_from_repository() -> None:
+    """Test that GitHubPublisher can detect owner from GITHUB_REPOSITORY."""
+    with patch("subprocess.run") as mock_run:
+        # Mock npm --version check
+        mock_run.return_value.stdout = "10.0.0"
+        mock_run.return_value.returncode = 0
+
+        with patch.dict(
+            os.environ,
+            {
+                "GITHUB_TOKEN": "test-token",
+                "GITHUB_REPOSITORY": "testowner/testrepo",
+            },
+        ):
+            publisher = GitHubPublisher()
+
+            assert publisher.owner == "testowner"
+            assert publisher.repository == "testrepo"
+
+
+def test_github_publisher_detects_owner_from_repository_owner() -> None:
+    """Test that GitHubPublisher can detect owner
+    from GITHUB_REPOSITORY_OWNER."""
+    with patch("subprocess.run") as mock_run:
+        # Mock npm --version check
+        mock_run.return_value.stdout = "10.0.0"
+        mock_run.return_value.returncode = 0
+
+        with patch.dict(
+            os.environ,
+            {
+                "GITHUB_TOKEN": "test-token",
+                "GITHUB_REPOSITORY_OWNER": "testowner",
+            },
+        ):
+            publisher = GitHubPublisher()
+
+            assert publisher.owner == "testowner"
+
+
+def test_github_publisher_prefers_provided_owner_over_environment() -> None:
+    """Test that provided owner takes precedence over environment detection."""
+    with patch("subprocess.run") as mock_run:
+        # Mock npm --version check
+        mock_run.return_value.stdout = "10.0.0"
+        mock_run.return_value.returncode = 0
+
+        with patch.dict(
+            os.environ,
+            {
+                "GITHUB_TOKEN": "test-token",
+                "GITHUB_REPOSITORY": "envowner/testrepo",
+            },
+        ):
+            publisher = GitHubPublisher(owner="providedowner")
+
+            assert publisher.owner == "providedowner"
+
+
+def test_github_publisher_raises_error_when_no_owner_detected() -> None:
+    """Test that GitHubPublisher raises error when no owner can be detected."""
+    with patch("subprocess.run") as mock_run:
+        # Mock npm --version check
+        mock_run.return_value.stdout = "10.0.0"
+        mock_run.return_value.returncode = 0
+
+        with patch.dict(
+            os.environ, {"GITHUB_TOKEN": "test-token"}, clear=True
+        ):
+            with pytest.raises(ValueError, match="Owner is required"):
+                GitHubPublisher()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -101,10 +101,62 @@ jobs:
           retention-days: 30
           include-hidden-files: false
 
+      - name: Set up Node.js for npm
+        if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://npm.pkg.github.com'
+
+      - name: Create settings file for CI
+        if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create a temporary settings file with CI configuration
+          cat > config/settings.yaml << EOF
+          # Unity Package Wrapper Configuration for CI
+
+          # Global settings for the package wrapper
+          templates_dir: "templates"
+          output_dir: "packages"
+          work_dir: ".unity_wrapper_temp"
+
+          # GitHub Package Registry settings
+          github:
+            # GitHub personal access token with packages:write permission
+            token: "$GITHUB_TOKEN"
+
+            # Registry URL (default for GitHub)
+            registry_url: "https://npm.pkg.github.com"
+
+            # GitHub owner (extracted from repository)
+            owner: "${{ github.repository_owner }}"
+
+            # Repository name where packages will be published
+            repository: "${{ github.event.repository.name }}"
+
+          # Default package settings
+          defaults:
+            author: "GitHub Actions <actions@github.com>"
+            unity_version: "2019.4"
+            unity_release: "0f1"
+            package_type: "library"
+
+          # Build settings
+          build:
+            auto_generate_asmdef: true
+            auto_generate_meta: true
+            auto_organize_runtime: true
+            remove_csharp_project_files: true
+            fix_global_namespaces: true
+          EOF
+
       - name: Publish packages to GitHub Package Registry
         if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Publishing packages to GitHub Package Registry..."
           unity-wrapper publish

@@ -75,7 +75,9 @@ github:
 ```
 
 ### 4. Authenticate with GitHub Package Registry
-Before publishing, you need to authenticate npm with GitHub:
+
+#### For Local Development
+Before publishing locally, you need to authenticate npm with GitHub:
 ```bash
 # Login to GitHub Package Registry
 npm login --scope=@your_github_username --registry=https://npm.pkg.github.com
@@ -85,6 +87,18 @@ npm login --scope=@your_github_username --registry=https://npm.pkg.github.com
 # Password: your_github_personal_access_token (with packages:write scope)
 # Email: your_email@example.com
 ```
+
+#### For CI/CD (GitHub Actions)
+The project includes automated CI/CD with GitHub Actions that:
+- **Automatically detects** GitHub repository owner and name from environment
+- **Uses the `GITHUB_TOKEN`** provided by GitHub Actions for authentication
+- **Creates temporary settings** configuration for the CI environment
+- **No manual authentication required** - everything works out of the box!
+
+The GitHub Actions workflow will automatically publish packages when:
+- Changes are made to `config/packages.yaml`
+- Source repositories have updates
+- Manual workflow dispatch is triggered
 
 ### 5. Build and Publish
 ```bash
@@ -194,11 +208,21 @@ com.example.package/
 ## 🚀 CI/CD Automation
 
 The included GitHub Actions workflow automatically:
-- **Monitors** configuration changes
+- **Monitors** configuration changes in `config/packages.yaml`
 - **Builds** packages when source repositories are updated
-- **Runs** tests and quality checks
-- **Publishes** packages to GitHub Package Registry
+- **Runs** tests and quality checks with 50%+ code coverage
+- **Publishes** packages to GitHub Package Registry using npm CLI
 - **Schedules** daily checks for upstream updates
+- **Auto-detects** GitHub repository context for seamless CI publishing
+- **Handles authentication** automatically using GitHub Actions tokens
+
+### CI/CD Features
+- ✅ **Zero-configuration publishing** - works out of the box in GitHub Actions
+- ✅ **Automatic environment detection** from `GITHUB_REPOSITORY` variables
+- ✅ **Smart caching** and artifact management
+- ✅ **Quality gates** with automated testing and linting
+- ✅ **Coverage reporting** with Codecov integration
+- ✅ **Manual triggers** for specific package builds
 
 ## ⚙️ Configuration Examples
 
