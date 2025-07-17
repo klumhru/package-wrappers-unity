@@ -27,8 +27,11 @@ class GitHubPublisher:
         # from environment
         self.token = token or os.getenv("GITHUB_TOKEN")
         self.registry_url = registry_url or "https://npm.pkg.github.com"
-        self.owner = owner
-        self.repository = repository
+
+        # For owner, try provided value, then extract from GitHub Actions
+        # environment
+        self.owner = owner or self._get_github_owner()
+        self.repository = repository or self._get_github_repository()
 
         if not self.token:
             raise ValueError(
@@ -41,6 +44,24 @@ class GitHubPublisher:
 
         # Check if npm is available
         self._check_npm_available()
+
+    def _get_github_owner(self) -> Optional[str]:
+        """Extract GitHub owner from environment variables."""
+        # GitHub Actions sets GITHUB_REPOSITORY as "owner/repo"
+        github_repo = os.getenv("GITHUB_REPOSITORY")
+        if github_repo and "/" in github_repo:
+            return github_repo.split("/")[0]
+
+        # Also try GITHUB_REPOSITORY_OWNER (newer GitHub Actions)
+        return os.getenv("GITHUB_REPOSITORY_OWNER")
+
+    def _get_github_repository(self) -> Optional[str]:
+        """Extract GitHub repository name from environment variables."""
+        # GitHub Actions sets GITHUB_REPOSITORY as "owner/repo"
+        github_repo = os.getenv("GITHUB_REPOSITORY")
+        if github_repo and "/" in github_repo:
+            return github_repo.split("/")[1]
+        return None
 
     def _check_npm_available(self) -> None:
         """Check if npm is available in the system."""
