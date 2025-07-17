@@ -30,7 +30,7 @@ test-coverage: ## Run tests with coverage report
 lint: ## Run linting checks
 	$(BLACK) --check src tests
 	$(FLAKE8) src tests
-	$(MYPY) src
+	$(MYPY) src tests
 
 format: ## Format code
 	$(BLACK) src tests
