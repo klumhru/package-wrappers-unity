@@ -96,7 +96,7 @@ packages:
 # NuGet Package Configurations
 # Define NuGet packages to be built into Unity packages
 nuget_packages:
-  # Example NuGet package configuration
+  # System.IO.Pipelines
   - name: "com.klumhru.wrapper.system-io-pipelines"
     display_name: "System.IO.Pipelines for Unity"
     description: "High-performance I/O pipelines for Unity."
@@ -104,6 +104,50 @@ nuget_packages:
     nuget_id: "System.IO.Pipelines"
     framework: "netstandard2.0"
     keywords: ["io", "pipelines", "performance"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
+  # System.Runtime.InteropServices
+  - name: "com.klumhru.wrapper.system-runtime-interopservices"
+    display_name: "System.Runtime.InteropServices for Unity"
+    description: "Provides types for interop services in Unity."
+    version: "4.3.0"
+    nuget_id: "System.Runtime.InteropServices"
+    framework: "netstandard2.0"
+    keywords: ["interop", "services", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
+  # System.Runtime.CompilerServices.Unsafe
+  - name: "com.klumhru.wrapper.system-runtime-compiler"
+    display_name: "System.Runtime.CompilerServices.Unsafe for Unity"
+    description: "Provides low-level access to unsafe code in Unity."
+    version: "6.1.2"
+    nuget_id: "System.Runtime.CompilerServices.Unsafe"
+    framework: "netstandard2.0"
+    keywords: ["unsafe", "compiler", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
+  # System.Buffers
+  - name: "com.klumhru.wrapper.system-buffers"
+    display_name: "System.Buffers for Unity"
+    description: "Provides types for buffer management in Unity."
+    version: "4.6.1"
+    nuget_id: "System.Buffers"
+    framework: "netstandard2.0"
+    keywords: ["buffers", "memory", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
+  # System.Diagnostics.DiagnosticSource
+  - name: "com.klumhru.wrapper.system-diagnostics-diagnostic-source"
+    display_name: "System.Diagnostics.DiagnosticSource for Unity"
+    description: "Provides diagnostic source types for Unity."
+    version: "9.0.7"
+    nuget_id: "System.Diagnostics.DiagnosticSource"
+    framework: "netstandard2.0"
+    keywords: ["diagnostics", "source", "unity"]
     package_json_extra:
       license: "MIT"
       homepage: "https://github.com/dotnet/runtime"
