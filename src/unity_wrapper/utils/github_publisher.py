@@ -1,20 +1,19 @@
 """GitHub Package Registry publisher."""
 
 import json
-import requests
-import tarfile
+import os
+import subprocess
 import tempfile
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, cast
-import base64
 
 
 logger = logging.getLogger(__name__)
 
 
 class GitHubPublisher:
-    """Publishes Unity packages to GitHub Package Registry."""
+    """Publishes Unity packages to GitHub Package Registry using npm CLI."""
 
     def __init__(
         self,
@@ -24,25 +23,43 @@ class GitHubPublisher:
         repository: Optional[str] = None,
     ):
         """Initialize GitHub publisher."""
-        self.token = token
+        # Use provided token, or fall back to GitHub Actions token
+        # from environment
+        self.token = token or os.getenv("GITHUB_TOKEN")
         self.registry_url = registry_url or "https://npm.pkg.github.com"
         self.owner = owner
         self.repository = repository
 
         if not self.token:
-            raise ValueError("GitHub token is required")
+            raise ValueError(
+                "GitHub token is required. Provide a token or set "
+                "the GITHUB_TOKEN environment variable."
+            )
 
-        self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "Authorization": f"token {self.token}",
-                "Accept": "application/vnd.github.v3+json",
-                "User-Agent": "unity-package-wrapper",
-            }
-        )
+        if not self.owner:
+            raise ValueError("Owner is required for GitHub Package Registry")
+
+        # Check if npm is available
+        self._check_npm_available()
+
+    def _check_npm_available(self) -> None:
+        """Check if npm is available in the system."""
+        try:
+            result = subprocess.run(
+                ["npm", "--version"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            logger.debug(f"npm version: {result.stdout.strip()}")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            raise RuntimeError(
+                "npm command not found. Please ensure Node.js and npm are "
+                "installed. You can install them from https://nodejs.org/"
+            )
 
     def publish_package(self, package_dir: Path) -> None:
-        """Publish a Unity package to GitHub Package Registry."""
+        """Publish a Unity package to GitHub Package Registry using npm."""
         package_json_path = package_dir / "package.json"
 
         if not package_json_path.exists():
@@ -59,125 +76,149 @@ class GitHubPublisher:
             f"Publishing {package_name}@{version} to GitHub Package Registry"
         )
 
-        # Create tarball
-        with tempfile.NamedTemporaryFile(
-            suffix=".tgz", delete=False
-        ) as temp_file:
-            tarball_path = Path(temp_file.name)
+        # Create a temporary directory for npm operations
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
 
+            # Copy package to temp directory
+            package_copy = temp_path / "package"
+            self._copy_package(package_dir, package_copy)
+
+            # Update package.json to ensure it's scoped for GitHub
+            self._update_package_json_for_github(package_copy / "package.json")
+
+            # Configure npm for GitHub Package Registry
+            self._configure_npm(temp_path)
+
+            # Publish using npm
+            self._npm_publish(package_copy)
+
+        logger.info(f"Successfully published {package_name}@{version}")
+
+    def _copy_package(self, source: Path, dest: Path) -> None:
+        """Copy package directory to destination."""
+        dest.mkdir(parents=True, exist_ok=True)
+
+        # Copy all files and directories
+        for item in source.rglob("*"):
+            if item.is_file():
+                rel_path = item.relative_to(source)
+                dest_file = dest / rel_path
+                dest_file.parent.mkdir(parents=True, exist_ok=True)
+
+                # Copy file content
+                with open(item, "rb") as src_f, open(dest_file, "wb") as dst_f:
+                    dst_f.write(src_f.read())
+
+    def _update_package_json_for_github(self, package_json_path: Path) -> None:
+        """Update package.json to ensure it's properly scoped for GitHub."""
+        with open(package_json_path, "r", encoding="utf-8") as f:
+            package_json = json.load(f)
+
+        name = package_json["name"]
+
+        # Ensure the package name is properly scoped for GitHub
+        if not name.startswith("@"):
+            package_json["name"] = f"@{self.owner}/{name}"
+
+        # Add publishConfig to ensure it publishes to GitHub Package Registry
+        package_json["publishConfig"] = {"registry": self.registry_url}
+
+        with open(package_json_path, "w", encoding="utf-8") as f:
+            json.dump(package_json, f, indent=2)
+
+    def _configure_npm(self, working_dir: Path) -> None:
+        """Configure npm for GitHub Package Registry authentication."""
+        # Create .npmrc file for authentication
+        npmrc_content = f"""//npm.pkg.github.com/:_authToken={self.token}
+@{self.owner}:registry={self.registry_url}
+"""
+
+        npmrc_path = working_dir / ".npmrc"
+        with open(npmrc_path, "w", encoding="utf-8") as f:
+            f.write(npmrc_content)
+
+    def _npm_publish(self, package_dir: Path) -> None:
+        """Publish package using npm CLI."""
         try:
-            self._create_tarball(package_dir, tarball_path)
-
-            # Calculate tarball info
-            tarball_size = tarball_path.stat().st_size
-
-            with open(tarball_path, "rb") as f:
-                tarball_data = f.read()
-
-            # Encode tarball as base64
-            tarball_b64 = base64.b64encode(tarball_data).decode("utf-8")
-
-            # Prepare npm package metadata
-            npm_metadata = self._create_npm_metadata(
-                package_json, tarball_b64, tarball_size
+            # Run npm publish
+            result = subprocess.run(
+                ["npm", "publish", "--access", "public"],
+                cwd=package_dir,
+                capture_output=True,
+                text=True,
+                check=True,
             )
 
-            # Publish to npm registry
-            self._publish_to_npm_registry(package_name, npm_metadata)
+            logger.debug(f"npm publish output: {result.stdout}")
 
-            logger.info(f"Successfully published {package_name}@{version}")
-
-        finally:
-            # Clean up temporary tarball
-            if tarball_path.exists():
-                tarball_path.unlink()
-
-    def _create_tarball(self, package_dir: Path, output_path: Path) -> None:
-        """Create a tarball of the package directory."""
-        with tarfile.open(output_path, "w:gz") as tar:
-            for item in package_dir.rglob("*"):
-                if item.is_file():
-                    # Use relative path from package directory
-                    arcname = item.relative_to(package_dir)
-                    tar.add(item, arcname=f"package/{arcname}")
-
-        logger.info(f"Created tarball: {output_path}")
-
-    def _create_npm_metadata(
-        self, package_json: Dict[str, Any], tarball_b64: str, tarball_size: int
-    ) -> Dict[str, Any]:
-        """Create npm-compatible package metadata."""
-        name = package_json["name"]
-        version = package_json["version"]
-
-        # Create dist info
-        dist: Dict[str, Any] = {
-            "shasum": "",  # GitHub will calculate this
-            "tarball": f"{self.registry_url}/{name}/-/{name}-{version}.tgz",
-            "integrity": "",  # GitHub will calculate this
-            "size": tarball_size,
-        }
-
-        # Create version metadata
-        version_metadata: Dict[str, Any] = {
-            **package_json,
-            "dist": dist,
-            "_nodeVersion": "16.0.0",
-            "_npmVersion": "8.0.0",
-        }
-
-        # Create full package metadata
-        metadata: Dict[str, Any] = {
-            "name": name,
-            "versions": {version: version_metadata},
-            "dist-tags": {"latest": version},
-            "_attachments": {
-                f"{name}-{version}.tgz": {
-                    "content_type": "application/octet-stream",
-                    "data": tarball_b64,
-                    "length": tarball_size,
-                }
-            },
-        }
-
-        return metadata
-
-    def _publish_to_npm_registry(
-        self, package_name: str, metadata: Dict[str, Any]
-    ) -> None:
-        """Publish package metadata to npm registry."""
-        # URL encode package name for GitHub
-        encoded_name = package_name.replace("/", "%2F")
-        url = f"{self.registry_url}/{encoded_name}"
-
-        response = self.session.put(url, json=metadata)
-
-        if response.status_code == 200:
-            logger.info(f"Package {package_name} published successfully")
-        elif response.status_code == 409:
-            logger.warning(f"Package {package_name} version already exists")
-        else:
-            response.raise_for_status()
+        except subprocess.CalledProcessError as e:
+            if (
+                "EPUBLISHCONFLICT" in e.stderr
+                or "cannot publish over the previously published version"
+                in e.stderr
+            ):
+                logger.warning(f"Package version already exists: {e.stderr}")
+            elif "ENEEDAUTH" in e.stderr or "need auth" in e.stderr:
+                logger.error(
+                    f"Authentication required for npm registry: {e.stderr}"
+                )
+                raise RuntimeError(
+                    "Authentication required. Please run 'npm login "
+                    "--scope=@{} --registry={}' to authenticate with the "
+                    "GitHub Package Registry.".format(
+                        self.owner, self.registry_url
+                    )
+                )
+            else:
+                logger.error(f"npm publish failed: {e.stderr}")
+                raise RuntimeError(f"Failed to publish package: {e.stderr}")
+        except FileNotFoundError:
+            raise RuntimeError(
+                "npm command not found. Please ensure Node.js and npm are "
+                "installed."
+            )
 
     def check_package_exists(self, package_name: str, version: str) -> bool:
         """Check if a package version already exists in the registry."""
-        encoded_name = package_name.replace("/", "%2F")
-        url = f"{self.registry_url}/{encoded_name}/{version}"
+        if not package_name.startswith("@"):
+            scoped_name = f"@{self.owner}/{package_name}"
+        else:
+            scoped_name = package_name
 
-        response = self.session.get(url)
-        return response.status_code == 200
+        try:
+            result = subprocess.run(
+                ["npm", "view", f"{scoped_name}@{version}", "version"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            return result.returncode == 0
+        except FileNotFoundError:
+            raise RuntimeError(
+                "npm command not found. Please ensure Node.js and npm are "
+                "installed."
+            )
 
     def get_package_info(self, package_name: str) -> Optional[Dict[str, Any]]:
         """Get package information from the registry."""
-        encoded_name = package_name.replace("/", "%2F")
-        url = f"{self.registry_url}/{encoded_name}"
-
-        response = self.session.get(url)
-
-        if response.status_code == 200:
-            return cast(Dict[str, Any], response.json())
-        elif response.status_code == 404:
-            return None
+        if not package_name.startswith("@"):
+            scoped_name = f"@{self.owner}/{package_name}"
         else:
-            response.raise_for_status()
+            scoped_name = package_name
+
+        try:
+            result = subprocess.run(
+                ["npm", "view", scoped_name, "--json"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            if result.returncode == 0:
+                return cast(Dict[str, Any], json.loads(result.stdout))
+            else:
+                return None
+
+        except (FileNotFoundError, json.JSONDecodeError):
             return None

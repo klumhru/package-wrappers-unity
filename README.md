@@ -28,6 +28,12 @@ This project automatically builds Unity packages from open source repositories a
 
 ## 🚀 Quick Start
 
+### Prerequisites
+- **Python 3.8+** with pip
+- **Node.js and npm** (required for package publishing)
+  - Install from https://nodejs.org/
+  - Used by the GitHub Package Registry publisher
+
 ### 1. Development Setup
 ```bash
 # Clone and set up development environment
@@ -46,15 +52,15 @@ packages:
     description: "Package description"
     version: "1.0.0"
     author: "Your Name <email@example.com>"
-    
+
     source:
       type: git
       url: "https://github.com/user/repo.git"
       ref: "main"
-    
+
     extract_path: "src"              # Path within repo to extract
     namespace: "YourCompany.Package" # C# namespace
-    
+
     dependencies: {}                 # Unity package dependencies
     keywords: ["tag1", "tag2"]       # Discovery tags
 ```
@@ -68,7 +74,19 @@ github:
   repository: "your_repo_name"       # Repository name
 ```
 
-### 4. Build and Publish
+### 4. Authenticate with GitHub Package Registry
+Before publishing, you need to authenticate npm with GitHub:
+```bash
+# Login to GitHub Package Registry
+npm login --scope=@your_github_username --registry=https://npm.pkg.github.com
+
+# When prompted, use:
+# Username: your_github_username
+# Password: your_github_personal_access_token (with packages:write scope)
+# Email: your_email@example.com
+```
+
+### 5. Build and Publish
 ```bash
 # Build all packages
 unity-wrapper build
@@ -134,6 +152,11 @@ make clean                          # Clean temporary files
 
 ## 🔧 Development
 
+### Prerequisites for Development
+- Python 3.8+ with pip
+- Node.js and npm (for package publishing functionality)
+- Git
+
 ```bash
 # Install development dependencies
 pip install -e ".[dev]"
@@ -187,31 +210,31 @@ packages:
     description: "A complex package with dependencies"
     version: "2.1.0"
     author: "Company Name <dev@company.com>"
-    
+
     source:
       type: git
       url: "https://github.com/company/advanced-repo.git"
       ref: "v2.1.0"
-    
+
     extract_path: "src/main"
     namespace: "Company.Advanced"
     asmdef_name: "Company.Advanced.Runtime"
-    
+
     dependencies:
       "com.unity.mathematics": "1.2.6"
       "com.unity.collections": "1.2.4"
-    
+
     keywords: ["math", "collections", "performance"]
-    
+
     assembly_references: ["Unity.Mathematics", "Unity.Collections"]
     define_constraints: ["UNITY_2021_3_OR_NEWER"]
     platforms: ["Editor", "Standalone", "iOS", "Android"]
-    
+
     package_json_extra:
       license: "MIT"
       homepage: "https://company.com/packages"
       repository: "https://github.com/company/advanced-repo"
-    
+
     asmdef_extra:
       allowUnsafeCode: true
       autoReferenced: false
