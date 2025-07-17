@@ -163,11 +163,13 @@ class UnityGenerator:
             meta_content["folderAsset"] = "yes"
 
         # Use YAML to generate properly formatted meta file content
-        return yaml.dump(
-            meta_content,
-            default_flow_style=False,
-            allow_unicode=True,
-            sort_keys=False,
+        return str(
+            yaml.dump(
+                meta_content,
+                default_flow_style=False,
+                allow_unicode=True,
+                sort_keys=False,
+            )
         )
 
     def write_meta_file(
