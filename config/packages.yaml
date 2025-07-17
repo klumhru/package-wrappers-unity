@@ -92,3 +92,29 @@ packages:
   #     ref: "main"
   #   extract_path: "src"
   #   namespace: "Example.Another"
+
+# NuGet Package Configurations
+# Define NuGet packages to be built into Unity packages
+nuget_packages:
+  # Example NuGet package configuration
+  - name: "com.klumhru.wrapper.system-io-pipelines"
+    display_name: "System.IO.Pipelines for Unity"
+    description: "High-performance I/O pipelines for Unity."
+    version: "7.0.0"
+    nuget_id: "System.IO.Pipelines"
+    framework: "netstandard2.0"
+    keywords: ["io", "pipelines", "performance"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
+
+  # - name: "com.klumhru.wrapper.newtonsoft-json"
+  #   display_name: "Newtonsoft.Json for Unity"
+  #   description: "Popular high-performance JSON framework for .NET"
+  #   version: "1.0.0"
+  #   nuget_id: "Newtonsoft.Json"
+  #   framework: "netstandard2.0"
+  #   keywords: ["json", "serialization", "parsing"]
+  #   package_json_extra:
+  #     license: "MIT"
+  #     homepage: "https://www.newtonsoft.com/json"
