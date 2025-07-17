@@ -100,7 +100,7 @@ nuget_packages:
   - name: "com.klumhru.wrapper.system-io-pipelines"
     display_name: "System.IO.Pipelines for Unity"
     description: "High-performance I/O pipelines for Unity."
-    version: "7.0.0"
+    version: "9.0.7"
     nuget_id: "System.IO.Pipelines"
     framework: "netstandard2.0"
     keywords: ["io", "pipelines", "performance"]
