@@ -1,0 +1,25 @@
+{
+  "name": "com.klumhru.wrapper.system-io-pipelines",
+  "displayName": "System.IO.Pipelines for Unity",
+  "version": "9.0.7",
+  "description": "High-performance I/O pipelines for Unity.",
+  "author": {
+    "name": "Högni Þór",
+    "email": "klumhru@gmail.com",
+    "url": "https://github.com/klumhru"
+  },
+  "unity": "2019.4",
+  "unityRelease": "0f1",
+  "keywords": [
+    "io",
+    "pipelines",
+    "performance"
+  ],
+  "dependencies": {},
+  "type": "library",
+  "license": "MIT",
+  "homepage": "https://github.com/dotnet/runtime",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/@klumhru"
+  }
+}

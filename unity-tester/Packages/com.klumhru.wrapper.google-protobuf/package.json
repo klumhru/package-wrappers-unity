@@ -1,0 +1,26 @@
+{
+  "name": "com.klumhru.wrapper.google-protobuf",
+  "displayName": "Google Protobuf for Unity",
+  "version": "v31.1.0",
+  "description": "Protocol Buffers for Unity, a language-neutral, platform-neutral extensible mechanism for serializing structured data.",
+  "author": {
+    "name": "Högni Þór",
+    "email": "klumhru@gmail.com",
+    "url": "https://github.com/klumhru"
+  },
+  "unity": "2019.4",
+  "unityRelease": "0f1",
+  "keywords": [
+    "protobuf",
+    "serialization",
+    "unity"
+  ],
+  "dependencies": {},
+  "type": "library",
+  "namespace": "Google.Protobuf",
+  "license": "https://github.com/protocolbuffers/protobuf/blob/v31.1/LICENSE",
+  "homepage": "https://github.com/protocolbuffers/protobuf/tree/v31.1",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/@klumhru"
+  }
+}

@@ -30,8 +30,10 @@ def test_cli_publish_help() -> None:
     result = runner.invoke(cli, ["publish", "--help"])
 
     assert result.exit_code == 0
-    assert "Publish packages to GitHub Package Registry" in result.output
+    assert "Publish packages to a package registry" in result.output
     assert "Node.js and npm" in result.output
+    assert "--registry" in result.output
+    assert "npmjs" in result.output
 
 
 def test_cli_list_packages_help() -> None:

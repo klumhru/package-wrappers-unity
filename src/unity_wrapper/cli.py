@@ -4,12 +4,13 @@ import click
 import logging
 import sys
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 
 from .core.package_builder import PackageBuilder
 from .core.config_manager import ConfigManager
 from .utils.file_watcher import FileWatcher
 from .utils.github_publisher import GitHubPublisher
+from .utils.package_publisher import create_publisher, PackagePublisher
 
 
 # Set up logging
@@ -136,12 +137,28 @@ def check(ctx: click.Context) -> None:
 
 @cli.command()
 @click.argument("package_name", required=False)
-@click.option("--token", help="GitHub token for authentication")
+@click.option("--token", help="Authentication token for the registry")
+@click.option(
+    "--registry",
+    type=click.Choice(["github", "npmjs", "openupm"]),
+    default="npmjs",
+    help="Target registry for publishing (default: npmjs)",
+)
+@click.option("--owner", help="Package owner/organization name")
 @click.pass_context
 def publish(
-    ctx: click.Context, package_name: Optional[str], token: Optional[str]
+    ctx: click.Context,
+    package_name: Optional[str],
+    token: Optional[str],
+    registry: str,
+    owner: Optional[str],
 ) -> None:
-    """Publish packages to GitHub Package Registry.
+    """Publish packages to a package registry.
+
+    Supported registries:
+    - npmjs: Free public npm registry (default)
+    - github: GitHub Package Registry (requires authentication)
+    - openupm: OpenUPM registry (manual submission required)
 
     Note: This command requires Node.js and npm to be installed.
     You can install them from https://nodejs.org/
@@ -153,28 +170,62 @@ def publish(
         config_manager = ConfigManager(config_path)
         github_settings = config_manager.get_github_settings()
 
-        # Use provided token, or token from settings (if not empty),
-        # or None to let GitHubPublisher use environment
-        settings_token = github_settings.get("token")
-        final_token = token or (settings_token if settings_token else None)
+        # Determine owner
+        final_owner = owner or github_settings.get("owner")
 
-        try:
-            publisher = GitHubPublisher(
-                token=final_token,
-                registry_url=github_settings.get("registry_url"),
-                owner=github_settings.get("owner"),
-                repository=github_settings.get("repository"),
-            )
-        except RuntimeError as e:
-            if "npm command not found" in str(e):
-                click.echo(
-                    "Error: npm is required for publishing packages.\n"
-                    "Please install Node.js and npm from https://nodejs.org/",
-                    err=True,
+        # Create appropriate publisher
+        publisher: Union[GitHubPublisher, PackagePublisher]
+        if registry == "github":
+            # Use provided token, or token from settings (if not empty),
+            # or None to let publisher use environment
+            settings_token = github_settings.get("token")
+            final_token = token or (settings_token if settings_token else None)
+
+            try:
+                publisher = GitHubPublisher(
+                    token=final_token,
+                    registry_url=github_settings.get("registry_url"),
+                    owner=final_owner,
+                    repository=github_settings.get("repository"),
                 )
-                sys.exit(1)
-            else:
-                raise
+            except RuntimeError as e:
+                if "npm command not found" in str(e):
+                    click.echo(
+                        "Error: npm is required for publishing packages.\n"
+                        "Please install Node.js and npm from \n"
+                        "https://nodejs.org/",
+                        err=True,
+                    )
+                    sys.exit(1)
+                else:
+                    raise
+        else:
+            # Use new multi-registry publisher
+            try:
+                publisher = create_publisher(
+                    registry=registry,
+                    token=token,
+                    owner=final_owner,
+                )
+            except RuntimeError as e:
+                if "npm is not available" in str(e):
+                    click.echo(
+                        "Error: npm is required for publishing packages.\n"
+                        "Please install Node.js and npm from \n"
+                        "https://nodejs.org/",
+                        err=True,
+                    )
+                    sys.exit(1)
+                else:
+                    raise
+
+        if registry == "openupm":
+            click.echo(
+                "OpenUPM packages must be submitted manually at:\n"
+                "https://openupm.com/packages/add/\n"
+                "Build your packages first with 'unity-wrapper build'"
+            )
+            return
 
         if package_name:
             package_path: Path = output_path / package_name
