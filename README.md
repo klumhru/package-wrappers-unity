@@ -1,6 +1,6 @@
 # Unity Package Wrapper
 
-This project automatically builds Unity packages from open source repositories and publishes them to GitHub's package registry.
+This project automatically builds Unity packages from open source repositories and publishes them to npmjs.org package registry.
 
 ## ✅ Features Implemented
 
@@ -90,15 +90,17 @@ npm login --scope=@your_github_username --registry=https://npm.pkg.github.com
 
 #### For CI/CD (GitHub Actions)
 The project includes automated CI/CD with GitHub Actions that:
-- **Automatically detects** GitHub repository owner and name from environment
-- **Uses the `GITHUB_TOKEN`** provided by GitHub Actions for authentication
-- **Creates temporary settings** configuration for the CI environment
-- **No manual authentication required** - everything works out of the box!
+- **Automatically publishes** to npmjs.org using your NPM_TOKEN secret
+- **Uses @klumhru scope** for all published packages
+- **No complex authentication** required for end users
+- **Everything works out of the box** after setting up the NPM_TOKEN secret!
 
 The GitHub Actions workflow will automatically publish packages when:
 - Changes are made to `config/packages.yaml`
 - Source repositories have updates
 - Manual workflow dispatch is triggered
+
+**Setup:** Add an `NPM_TOKEN` secret to your GitHub repository with write access to the @klumhru scope.
 
 ### 5. Build and Publish
 ```bash
@@ -154,7 +156,8 @@ unity-wrapper remove PACKAGE_NAME    # Remove package configuration
 
 # Automation
 unity-wrapper watch                  # Watch for config changes
-unity-wrapper publish               # Publish to GitHub Package Registry
+unity-wrapper publish               # Publish to npmjs.org (default)
+unity-wrapper publish --registry github  # Publish to GitHub Package Registry
 
 # Development (via Makefile)
 make dev-setup                      # Complete development setup
@@ -221,20 +224,67 @@ com.example.package/
 └── Runtime.meta                    # Runtime directory meta file
 ```
 
+## 📦 Using Packages in Unity
+
+### Step 1: Configure Scoped Registry
+Add this to your Unity project's `Packages/manifest.json`:
+
+```json
+{
+  "scopedRegistries": [
+    {
+      "name": "npm",
+      "url": "https://registry.npmjs.org",
+      "scopes": [ "klumhru" ]
+    }
+  ],
+  "dependencies": {
+    "com.klumhru.wrapper.google-protobuf": "31.1.0"
+  }
+}
+```
+
+### Step 2: No Authentication Required! 🎉
+Unlike GitHub Package Registry, npmjs.org is completely free and open:
+- ✅ **No tokens needed** for installing packages
+- ✅ **No `.npmrc` configuration** required
+- ✅ **Works immediately** in Unity Package Manager
+- ✅ **Full semantic versioning** support
+
+### Available Packages
+- `com.klumhru.wrapper.google-protobuf` - Protocol Buffers for Unity
+- `com.klumhru.wrapper.unitask` - UniTask async/await support
+- `com.klumhru.wrapper.system-io-pipelines` - System.IO.Pipelines for Unity
+
+Browse all packages at: https://www.npmjs.com/org/klumhru
+
+### Alternative: Install via Git URL
+If you prefer, you can still install packages directly from GitHub:
+
+```json
+{
+  "dependencies": {
+    "com.klumhru.wrapper.google-protobuf": "https://github.com/klumhru/package-wrappers-unity.git?path=packages/com.klumhru.wrapper.google-protobuf"
+  }
+}
+```
+
+**Note:** Git URL installation doesn't support automatic version resolution and updates like registry-based installation.
+
 ## 🚀 CI/CD Automation
 
 The included GitHub Actions workflow automatically:
 - **Monitors** configuration changes in `config/packages.yaml`
 - **Builds** packages when source repositories are updated
 - **Runs** tests and quality checks with 50%+ code coverage
-- **Publishes** packages to GitHub Package Registry using npm CLI
+- **Publishes** packages to npmjs.org using npm CLI
 - **Schedules** daily checks for upstream updates
 - **Auto-detects** GitHub repository context for seamless CI publishing
-- **Handles authentication** automatically using GitHub Actions tokens
+- **Uses your NPM_TOKEN** secret for authenticated publishing
 
 ### CI/CD Features
-- ✅ **Zero-configuration publishing** - works out of the box in GitHub Actions
-- ✅ **Automatic environment detection** from `GITHUB_REPOSITORY` variables
+- ✅ **Zero-configuration publishing** - works out of the box with NPM_TOKEN secret
+- ✅ **Free npmjs.org hosting** - no authentication required for users
 - ✅ **Smart caching** and artifact management
 - ✅ **Quality gates** with automated testing and linting
 - ✅ **Coverage reporting** with Codecov integration

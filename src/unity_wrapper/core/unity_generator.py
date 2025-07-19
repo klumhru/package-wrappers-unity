@@ -5,7 +5,7 @@ import os
 import uuid
 import yaml
 from pathlib import Path
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
+from typing import Dict, List, Optional, Any, TYPE_CHECKING, Union
 from jinja2 import Environment, FileSystemLoader
 import logging
 
@@ -39,7 +39,7 @@ class UnityGenerator:
         display_name: str,
         version: str,
         description: str,
-        author: str,
+        author: Union[str, Dict[str, str]],
         namespace: Optional[str] = None,
         dependencies: Optional[Dict[str, str]] = None,
         keywords: Optional[List[str]] = None,
@@ -51,7 +51,7 @@ class UnityGenerator:
             "displayName": display_name,
             "version": version,
             "description": description,
-            "author": author,
+            "author": self._parse_author(author),
             "unity": "2019.4",
             "unityRelease": "0f1",
             "keywords": keywords or [],
@@ -477,3 +477,41 @@ class UnityGenerator:
 
         build_settings = self.config.get_build_settings()
         return bool(build_settings.get("fix_global_namespaces", True))
+
+    def _parse_author(
+        self, author: Union[str, Dict[str, str]]
+    ) -> Dict[str, str]:
+        """Parse author string or object into UPM author object format.
+
+        Supports formats:
+        - Dict: Pass through with validation/defaults
+        - "Name <email@domain.com>"
+        - "Name"
+        - "" (empty string)
+
+        Returns UPM-compliant author object with name, email, and url fields.
+        """
+        # If already a dict, validate and return with defaults
+        if isinstance(author, dict):
+            return {
+                "name": str(author.get("name", "")),
+                "email": str(author.get("email", "")),
+                "url": str(author.get("url", "")),
+            }
+
+        # Handle string formats
+        if not author or not author.strip():
+            return {"name": "", "email": "", "url": ""}
+
+        import re
+
+        # Pattern to match "Name <email@domain.com>" format
+        match = re.match(r"^(.+?)\s*<(.+?)>$", author.strip())
+
+        if match:
+            name = match.group(1).strip()
+            email = match.group(2).strip()
+            return {"name": name, "email": email, "url": ""}
+        else:
+            # Just a name without email
+            return {"name": author.strip(), "email": "", "url": ""}

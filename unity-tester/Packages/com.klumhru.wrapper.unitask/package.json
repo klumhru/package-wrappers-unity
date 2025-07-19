@@ -1,0 +1,26 @@
+{
+  "name": "com.klumhru.wrapper.unitask",
+  "displayName": "UniTask for Unity",
+  "version": "2.5.10-1",
+  "description": "A fast and efficient alternative to C# async/await for Unity.",
+  "author": {
+    "name": "Högni Þór",
+    "email": "klumhru@gmail.com",
+    "url": "https://github.com/klumhru"
+  },
+  "unity": "2019.4",
+  "unityRelease": "0f1",
+  "keywords": [
+    "async",
+    "await",
+    "unity"
+  ],
+  "dependencies": {},
+  "type": "library",
+  "namespace": "Cysharp.Threading.Tasks",
+  "license": "MIT",
+  "homepage": "https://github.com/Cysharp/UniTask",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/@klumhru"
+  }
+}

@@ -24,7 +24,7 @@ packages:
   - name: "com.klumhru.wrapper.unitask"
     display_name: "UniTask for Unity"
     description: "A fast and efficient alternative to C# async/await for Unity."
-    version: "2.5.10"
+    version: "2.5.10-1"
     source:
       type: git
       url: "https://github.com/Cysharp/UniTask.git"
@@ -152,13 +152,13 @@ nuget_packages:
       license: "MIT"
       homepage: "https://github.com/dotnet/runtime"
 
-  # - name: "com.klumhru.wrapper.newtonsoft-json"
-  #   display_name: "Newtonsoft.Json for Unity"
-  #   description: "Popular high-performance JSON framework for .NET"
-  #   version: "1.0.0"
-  #   nuget_id: "Newtonsoft.Json"
-  #   framework: "netstandard2.0"
-  #   keywords: ["json", "serialization", "parsing"]
-  #   package_json_extra:
-  #     license: "MIT"
-  #     homepage: "https://www.newtonsoft.com/json"
+  # # - name: "com.klumhru.wrapper.newtonsoft-json"
+  # #   display_name: "Newtonsoft.Json for Unity"
+  # #   description: "Popular high-performance JSON framework for .NET"
+  # #   version: "1.0.0"
+  # #   nuget_id: "Newtonsoft.Json"
+  # #   framework: "netstandard2.0"
+  # #   keywords: ["json", "serialization", "parsing"]
+  # #   package_json_extra:
+  # #     license: "MIT"
+  # #     homepage: "https://www.newtonsoft.com/json"

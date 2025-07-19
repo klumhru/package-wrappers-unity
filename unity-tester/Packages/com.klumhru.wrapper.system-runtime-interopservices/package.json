@@ -1,0 +1,25 @@
+{
+  "name": "com.klumhru.wrapper.system-runtime-interopservices",
+  "displayName": "System.Runtime.InteropServices for Unity",
+  "version": "4.3.0",
+  "description": "Provides types for interop services in Unity.",
+  "author": {
+    "name": "Högni Þór",
+    "email": "klumhru@gmail.com",
+    "url": "https://github.com/klumhru"
+  },
+  "unity": "2019.4",
+  "unityRelease": "0f1",
+  "keywords": [
+    "interop",
+    "services",
+    "unity"
+  ],
+  "dependencies": {},
+  "type": "library",
+  "license": "MIT",
+  "homepage": "https://github.com/dotnet/runtime",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/@klumhru"
+  }
+}

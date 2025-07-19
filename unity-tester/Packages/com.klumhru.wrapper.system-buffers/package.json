@@ -1,0 +1,25 @@
+{
+  "name": "com.klumhru.wrapper.system-buffers",
+  "displayName": "System.Buffers for Unity",
+  "version": "4.6.1",
+  "description": "Provides types for buffer management in Unity.",
+  "author": {
+    "name": "Högni Þór",
+    "email": "klumhru@gmail.com",
+    "url": "https://github.com/klumhru"
+  },
+  "unity": "2019.4",
+  "unityRelease": "0f1",
+  "keywords": [
+    "buffers",
+    "memory",
+    "unity"
+  ],
+  "dependencies": {},
+  "type": "library",
+  "license": "MIT",
+  "homepage": "https://github.com/dotnet/runtime",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/@klumhru"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "com.klumhru.wrapper.system-runtime-compiler",
+  "displayName": "System.Runtime.CompilerServices.Unsafe for Unity",
+  "version": "6.1.2",
+  "description": "Provides low-level access to unsafe code in Unity.",
+  "author": {
+    "name": "Högni Þór",
+    "email": "klumhru@gmail.com",
+    "url": "https://github.com/klumhru"
+  },
+  "unity": "2019.4",
+  "unityRelease": "0f1",
+  "keywords": [
+    "unsafe",
+    "compiler",
+    "unity"
+  ],
+  "dependencies": {},
+  "type": "library",
+  "license": "MIT",
+  "homepage": "https://github.com/dotnet/runtime",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/@klumhru"
+  }
+}

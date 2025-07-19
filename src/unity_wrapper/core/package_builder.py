@@ -109,7 +109,15 @@ class PackageBuilder:
                 runtime_dir, asmdef_name, asmdef_content
             )
 
-        # Generate all meta files
+        # Copy LICENSE file if available
+        self._copy_license_file(repo_path, package_output_dir)
+
+        # Generate README.md with disclaimer and original content
+        self._generate_readme_file(
+            repo_path, package_output_dir, package_config
+        )
+
+        # Generate all meta files (including for LICENSE and README if copied)
         self.unity_generator.generate_all_meta_files(package_output_dir)
 
         logger.info(
@@ -163,7 +171,17 @@ class PackageBuilder:
         # Generate meta files for DLLs (no asmdef for NuGet packages)
         self.unity_generator.generate_dll_meta_files(plugins_dir)
 
+        # Copy LICENSE file if available from NuGet package
+        self._copy_nuget_license_file(package_path, package_output_dir)
+
+        # Generate README.md with disclaimer
+        # (NuGet packages typically don't have README in package)
+        self._generate_readme_file(
+            package_path, package_output_dir, package_config
+        )
+
         # Generate meta files for directories
+        # (including for LICENSE and README if copied)
         self.unity_generator.generate_all_meta_files(package_output_dir)
 
         logger.info(
@@ -237,6 +255,27 @@ class PackageBuilder:
         self, package_config: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Generate package.json content from package configuration."""
+        # Get defaults from settings
+        defaults = self.config.get_global_settings().get("defaults", {})
+        github_settings = self.config.get_github_settings()
+
+        # Handle author field - can be string or object
+        author = package_config.get("author", defaults.get("author", ""))
+
+        # Generate publishConfig for GitHub Package Registry
+        publish_config = {}
+        github_owner = github_settings.get("owner")
+        if github_owner:
+            publish_config = {
+                "publishConfig": {
+                    "registry": f"https://npm.pkg.github.com/@{github_owner}"
+                }
+            }
+
+        # Merge package_json_extra with publishConfig
+        extra_config = package_config.get("package_json_extra", {})
+        extra_config.update(publish_config)
+
         return self.unity_generator.generate_package_json(
             name=package_config["name"],
             display_name=package_config.get(
@@ -244,11 +283,11 @@ class PackageBuilder:
             ),
             version=package_config.get("version", "1.0.0"),
             description=package_config.get("description", ""),
-            author=package_config.get("author", ""),
+            author=author,
             namespace=package_config.get("namespace"),
             dependencies=package_config.get("dependencies", {}),
             keywords=package_config.get("keywords", []),
-            **package_config.get("package_json_extra", {}),
+            **extra_config,
         )
 
     def _generate_assembly_definition(
@@ -269,6 +308,249 @@ class PackageBuilder:
             platforms=package_config.get("platforms", []),
             **package_config.get("asmdef_extra", {}),
         )
+
+    def _copy_license_file(
+        self, source_dir: Path, package_output_dir: Path
+    ) -> None:
+        """
+        Copy LICENSE file from source repository to package root if available.
+        """
+        # Common LICENSE file names to look for
+        license_names = [
+            "LICENSE",
+            "LICENSE.txt",
+            "LICENSE.md",
+            "License",
+            "License.txt",
+            "License.md",
+            "license",
+            "license.txt",
+            "license.md",
+            "COPYING",
+            "COPYING.txt",
+            "COPYRIGHT",
+            "COPYRIGHT.txt",
+        ]
+
+        license_file_found = None
+
+        # Search for LICENSE file in the source directory
+        for license_name in license_names:
+            license_path = source_dir / license_name
+            if license_path.exists() and license_path.is_file():
+                license_file_found = license_path
+                logger.info(f"Found LICENSE file: {license_name}")
+                break
+
+        if license_file_found:
+            # Copy LICENSE file to package root
+            dest_license_path = package_output_dir / "LICENSE"
+            try:
+                shutil.copy2(license_file_found, dest_license_path)
+                logger.info(
+                    f"Copied LICENSE file to package: {dest_license_path}"
+                )
+
+            except Exception as e:
+                logger.warning(f"Failed to copy LICENSE file: {e}")
+        else:
+            logger.info("No LICENSE file found in source repository")
+
+    def _copy_nuget_license_file(
+        self, nuget_package_path: Path, package_output_dir: Path
+    ) -> None:
+        """
+        Copy LICENSE file from NuGet package to package root if available.
+        """
+        # Common LICENSE file names to look for in NuGet packages
+        license_names = [
+            "LICENSE",
+            "LICENSE.txt",
+            "LICENSE.md",
+            "License",
+            "License.txt",
+            "License.md",
+            "license",
+            "license.txt",
+            "license.md",
+            "COPYING",
+            "COPYING.txt",
+            "COPYRIGHT",
+            "COPYRIGHT.txt",
+        ]
+
+        license_file_found = None
+
+        # Search for LICENSE file in the NuGet package directory
+        for license_name in license_names:
+            license_path = nuget_package_path / license_name
+            if license_path.exists() and license_path.is_file():
+                license_file_found = license_path
+                logger.info(
+                    f"Found LICENSE file in NuGet package: {license_name}"
+                )
+                break
+
+        if license_file_found:
+            # Copy LICENSE file to package root
+            dest_license_path = package_output_dir / "LICENSE"
+            try:
+                shutil.copy2(license_file_found, dest_license_path)
+                logger.info(
+                    f"Copied LICENSE file to package: {dest_license_path}"
+                )
+
+            except Exception as e:
+                logger.warning(
+                    f"Failed to copy LICENSE file from NuGet package: {e}"
+                )
+        else:
+            logger.info("No LICENSE file found in NuGet package")
+
+    def _generate_readme_file(
+        self,
+        source_dir: Path,
+        package_output_dir: Path,
+        package_config: Dict[str, Any],
+    ) -> None:
+        """Generate README.md file with disclaimer
+        and original content if available."""
+        readme_content: List[str] = []
+
+        # Generate disclaimer header
+        package_name = package_config["name"]
+        display_name = package_config.get("display_name", package_name)
+        source_config = package_config.get("source", {})
+        source_url = source_config.get("url", "")
+
+        # Extract organization/author from source URL or use generic
+        author_name = "the original package author"
+        if "github.com" in source_url:
+            # Extract GitHub organization/user
+            url_parts = (
+                source_url.replace("https://github.com/", "")
+                .replace(".git", "")
+                .split("/")
+            )
+            if len(url_parts) >= 1:
+                org_name = url_parts[0]
+                # Common organizations that should be mentioned specifically
+                if org_name.lower() in [
+                    "microsoft",
+                    "google",
+                    "facebook",
+                    "meta",
+                    "apple",
+                    "oracle",
+                    "ibm",
+                    "amazon",
+                    "aws",
+                ]:
+                    author_name = org_name.title()
+                else:
+                    author_name = f"the {org_name} organization"
+
+        # Create disclaimer
+        disclaimer = f"""# {display_name}
+
+> **⚠️ IMPORTANT DISCLAIMER ⚠️**
+>
+> This Unity package is a community-created wrapper and is **NOT officially \n
+> affiliated with, endorsed by, or supported by {author_name}**.
+>
+> - The wrapper author has **no affiliation** with {author_name}
+> - This package is provided **as-is** for Unity developers' convenience
+> - For official support, please refer to the original repository
+> - Use at your own risk in production environments
+
+---
+
+"""
+
+        readme_content.append(disclaimer)
+
+        # Look for original README files
+        readme_names = [
+            "README.md",
+            "README.MD",
+            "Readme.md",
+            "readme.md",
+            "README.txt",
+            "README.rst",
+            "README",
+            "readme",
+        ]
+
+        original_readme_found = None
+        original_readme_content = ""
+
+        # Search for README file in the source directory
+        for readme_name in readme_names:
+            readme_path = source_dir / readme_name
+            if readme_path.exists() and readme_path.is_file():
+                original_readme_found = readme_path
+                logger.info(f"Found original README file: {readme_name}")
+                break
+
+        if original_readme_found:
+            try:
+                # Try to read as UTF-8, fallback to latin-1 if needed
+                try:
+                    original_readme_content = original_readme_found.read_text(
+                        encoding="utf-8"
+                    )
+                except UnicodeDecodeError:
+                    original_readme_content = original_readme_found.read_text(
+                        encoding="latin-1"
+                    )
+
+                readme_content.append("## Original Package Documentation\n\n")
+                readme_content.append(original_readme_content)
+                logger.info(
+                    "Included original README content in package README"
+                )
+
+            except Exception as e:
+                logger.warning(f"Failed to read original README file: {e}")
+                readme_content.append("## Original Package Documentation\n\n")
+                readme_content.append(
+                    "*Original README content could not be included due "
+                    "to encoding issues.*\n"
+                )
+        else:
+            logger.info("No original README file found in source repository")
+            readme_content.append("## Package Information\n\n")
+            readme_content.append(
+                f"This package wraps functionality from: {source_url}\n\n"
+            )
+            readme_content.append(
+                "Please refer to the original repository for documentation "
+                "and usage examples.\n"
+            )
+
+        # Add Unity-specific information
+        readme_content.append("\n---\n\n## Unity Package Information\n\n")
+        readme_content.append(f"- **Package Name**: `{package_name}`\n")
+        if package_config.get("version"):
+            readme_content.append(
+                f"- **Version**: {package_config['version']}\n"
+            )
+        if package_config.get("namespace"):
+            readme_content.append(
+                f"- **Namespace**: `{package_config['namespace']}`\n"
+            )
+        if source_url:
+            readme_content.append(f"- **Original Source**: {source_url}\n")
+
+        # Write README.md file
+        readme_file_path = package_output_dir / "README.md"
+        try:
+            with open(readme_file_path, "w", encoding="utf-8") as f:
+                f.write("".join(readme_content))
+            logger.info(f"Generated README.md at {readme_file_path}")
+
+        except Exception as e:
+            logger.warning(f"Failed to generate README.md file: {e}")
 
     def cleanup(self) -> None:
         """Clean up temporary files and repositories."""
