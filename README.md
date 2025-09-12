@@ -29,7 +29,8 @@ This project automatically builds Unity packages from open source repositories a
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Python 3.8+** with pip
+- **Python 3.12+**
+- **Poetry** for dependency and environment management
 - **Node.js and npm** (required for package publishing)
   - Install from https://nodejs.org/
   - Used by the GitHub Package Registry publisher
@@ -40,7 +41,7 @@ This project automatically builds Unity packages from open source repositories a
 make dev-setup
 
 # Or manually:
-pip install -e ".[dev]"
+poetry install --with dev
 ```
 
 ### 2. Configure Your Packages
@@ -104,17 +105,23 @@ The GitHub Actions workflow will automatically publish packages when:
 
 ### 5. Build and Publish
 ```bash
-# Build all packages
-unity-wrapper build
+# Build all packages (via Makefile)
+make build
 
 # Watch for changes and auto-rebuild
-unity-wrapper watch
+make watch
 
 # Check for package updates
-unity-wrapper check
+make check
 
 # Publish to GitHub Package Registry
-unity-wrapper publish
+make publish
+
+# Alternatively, run the CLI directly via Poetry
+poetry run unity-wrapper build
+poetry run unity-wrapper watch
+poetry run unity-wrapper check
+poetry run unity-wrapper publish
 ```
 
 ## 📁 Project Structure
@@ -147,12 +154,12 @@ unity-wrapper publish
 ## 🛠️ Available Commands
 
 ```bash
-# Package Management
-unity-wrapper build [PACKAGE_NAME]  # Build packages (all or specific)
-unity-wrapper check                  # Check for updates
-unity-wrapper list-packages          # List configured packages
-unity-wrapper add                    # Add new package configuration
-unity-wrapper remove PACKAGE_NAME    # Remove package configuration
+# Package Management (via Poetry)
+poetry run unity-wrapper build [PACKAGE_NAME]  # Build packages (all or specific)
+poetry run unity-wrapper check                  # Check for updates
+poetry run unity-wrapper list-packages          # List configured packages
+poetry run unity-wrapper add                    # Add new package configuration
+poetry run unity-wrapper remove PACKAGE_NAME    # Remove package configuration
 
 # Automation
 unity-wrapper watch                  # Watch for config changes
@@ -170,7 +177,8 @@ make clean                          # Clean temporary files
 ## 🔧 Development
 
 ### Prerequisites for Development
-- Python 3.8+ with pip
+- Python 3.12+
+- Poetry
 - Node.js and npm (for package publishing functionality)
 - Git
 
@@ -180,19 +188,19 @@ make setup
 
 # Or step by step:
 # Install development dependencies
-pip install -e ".[dev]"
+poetry install -E dev
 
 # Install pre-commit hooks (runs quality checks on every commit)
 make install-hooks
 
 # Run tests
-pytest tests/ -v --cov=unity_wrapper
+poetry run pytest tests/ -v --cov=unity_wrapper
 
 # Format code
-black src tests
+poetry run black src tests
 
 # Type checking
-mypy src
+poetry run mypy src
 
 # Run all quality checks
 make qa

@@ -100,10 +100,10 @@ class PackageBuilder:
 
         # Generate assembly definition if namespace is specified
         namespace = package_config.get("namespace")
-        if namespace:
-            asmdef_name = package_config.get(
-                "asmdef_name", package_name.replace(".", "_")
-            )
+        asmdef_name = package_config.get("asmdef_name", "")
+        # Generate assembly definition if namespace and asmdef_name
+        # are specified
+        if namespace and asmdef_name != "":
             asmdef_content = self._generate_assembly_definition(package_config)
             self.unity_generator.write_assembly_definition(
                 runtime_dir, asmdef_name, asmdef_content

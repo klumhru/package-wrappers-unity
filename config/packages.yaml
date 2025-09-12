@@ -21,10 +21,89 @@ packages:
       license: "https://github.com/protocolbuffers/protobuf/blob/v31.1/LICENSE"
       homepage: "https://github.com/protocolbuffers/protobuf/tree/v31.1"
 
+  # YetAnotherHttpHandler for Unity
+  - name: "com.klumhru.wrapper.yetanotherhttphandler"
+    display_name: "YetAnotherHttpHandler for Unity"
+    description: "YetAnotherHttpHandler is a lightweight HTTP handler for Unity, providing an easy way to make HTTP requests."
+    version: "1.11.2"
+    source:
+      type: git
+      url: "https://github.com/Cysharp/YetAnotherHttpHandler.git"
+      ref: "1.11.2"
+    extract_path: "src/YetAnotherHttpHandler"
+    asmdef_name: "YetAnotherHttpHandler.Unity"
+    asmdef_extra:
+      allowUnsafeCode: true
+    namespace: "YetAnotherHttpHandler"
+    keywords: ["http", "handler", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/Cysharp/YetAnotherHttpHandler"
+
+  # MessagePipe for Unity
+  - name: "com.klumhru.wrapper.messagepipe"
+    display_name: "MessagePipe for Unity"
+    description: "A fast and lightweight messaging system for Unity."
+    version: "1.8.1"
+    source:
+      type: git
+      url: "https://github.com/Cysharp/MessagePipe.git"
+      ref: "1.8.1"
+    extract_path: "src/MessagePipe.Unity/Assets/Plugins/MessagePipe"
+    asmdef_name: "MessagePipe"
+    asmdef_extra:
+      references:
+        - "UniTask"
+    namespace: "MessagePipe"
+    keywords: ["messaging", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/Cysharp/MessagePipe"
+
+  # MessagePipe VContainer
+  - name: "com.klumhru.wrapper.messagepipe-vcontainer"
+    display_name: "MessagePipe VContainer for Unity"
+    description: "Integration of MessagePipe with VContainer for Unity."
+    version: "1.0.0"
+    source:
+      type: git
+      url: "https://github.com/Cysharp/MessagePipe.git"
+      ref: "1.8.1"
+    extract_path: "src/MessagePipe.Unity/Assets/Plugins/MessagePipe.VContainer"
+    asmdef_name: "MessagePipe.VContainer"
+    asmdef_extra:
+      references:
+        - "MessagePipe"
+        - "VContainer"
+    namespace: "MessagePipe.VContainer"
+    keywords: ["messaging", "vcontainer", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/Cysharp/MessagePipe"
+
+  # VContainer for Unity
+  - name: "com.klumhru.wrapper.vcontainer"
+    display_name: "VContainer for Unity"
+    description: "A lightweight and fast dependency injection framework for Unity."
+    version: "1.0.0"
+    source:
+      type: git
+      url: "https://github.com/hadashiA/VContainer.git"
+      ref: "1.16.9"
+    extract_path: "VContainer/Assets/VContainer"
+    asmdef_name: "VContainer"
+    asmdef_extra:
+      allowUnsafeCode: true
+    namespace: "VContainer"
+    keywords: ["dependency injection", "unity"]
+    package_json_extra:
+      license: "MIT"
+
+  # UniTask for Unity
   - name: "com.klumhru.wrapper.unitask"
     display_name: "UniTask for Unity"
     description: "A fast and efficient alternative to C# async/await for Unity."
-    version: "2.5.10-1"
+    version: "2.5.10"
     source:
       type: git
       url: "https://github.com/Cysharp/UniTask.git"
@@ -96,6 +175,132 @@ packages:
 # NuGet Package Configurations
 # Define NuGet packages to be built into Unity packages
 nuget_packages:
+  # Google.Apis.Auth
+  - name: "com.klumhru.wrapper.google-apis-auth"
+    display_name: "Google.Apis.Auth for Unity"
+    description: "Google Authentication library for Unity."
+    version: "1.70.0"
+    nuget_id: "Google.Apis.Auth"
+    framework: "netstandard2.0"
+    keywords: ["google", "auth", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/googleapis/google-api-dotnet-client"
+  # Google.Apis.Core
+  - name: "com.klumhru.wrapper.google-apis-core"
+    display_name: "Google.Apis.Core for Unity"
+    description: "Core library for Google APIs in Unity."
+    version: "1.70.0"
+    nuget_id: "Google.Apis.Core"
+    framework: "netstandard2.0"
+    keywords: ["google", "apis", "core", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/googleapis/google-api-dotnet-client"
+  # Google.Apis
+  - name: "com.klumhru.wrapper.google-apis"
+    display_name: "Google.Apis for Unity"
+    description: "Google APIs client library for Unity."
+    version: "1.70.0"
+    nuget_id: "Google.Apis"
+    framework: "netstandard2.0"
+    keywords: ["google", "apis", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/googleapis/google-api-dotnet-client"
+  # Grpc.Core
+  - name: "com.klumhru.wrapper.grpc-core"
+    display_name: "gRPC Core for Unity"
+    description: "gRPC Core library for Unity, enabling high-performance RPC calls."
+    version: "2.46.6"
+    nuget_id: "Grpc.Core"
+    framework: "netstandard2.0"
+    keywords: ["grpc", "rpc", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/grpc/grpc-csharp"
+  # System.Management
+  - name: "com.klumhru.wrapper.system-management"
+    display_name: "System.Management for Unity"
+    description: "Provides access to a rich set of management information and management events about the system."
+    version: "9.0.7"
+    nuget_id: "System.Management"
+    framework: "netstandard2.0"
+    keywords: ["system", "management", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
+  # System.CodeDom
+  - name: "com.klumhru.wrapper.system-codedom"
+    display_name: "System.CodeDom for Unity"
+    description: "Provides classes for the code document object model (CodeDOM) in Unity."
+    version: "4.5.0"
+    nuget_id: "System.CodeDom"
+    framework: "netstandard2.0"
+    keywords: ["system", "codedom", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
+  # Grpc.Core.Api
+  - name: "com.klumhru.wrapper.grpc-core-api"
+    display_name: "gRPC Core API for Unity"
+    description: "gRPC Core API library for Unity, providing the API surface for gRPC calls."
+    version: "2.71.0"
+    nuget_id: "Grpc.Core.Api"
+    framework: "netstandard2.1"
+    keywords: ["grpc", "api", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/grpc/grpc-csharp"
+
+  # Grpc.Net.Client
+  - name: "com.klumhru.wrapper.grpc-net-client"
+    display_name: "gRPC Net Client for Unity"
+    description: "gRPC Net Client library for Unity, enabling gRPC client functionality."
+    version: "2.71.0"
+    nuget_id: "Grpc.Net.Client"
+    framework: "netstandard2.1"
+    keywords: ["grpc", "client", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/grpc/grpc-csharp"
+
+  # Grpc.Net.Common
+  - name: "com.klumhru.wrapper.grpc-net-common"
+    display_name: "gRPC Net Common for Unity"
+    description: "gRPC Net Common library for Unity, providing common types for gRPC."
+    version: "2.71.0"
+    nuget_id: "Grpc.Net.Common"
+    framework: "netstandard2.1"
+    keywords: ["grpc", "common", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/grpc/grpc-csharp"
+
+  # Microsoft.Extensions.Logging.Abstractions
+  - name: "com.klumhru.wrapper.microsoft-extensions-logging-abstractions"
+    display_name: "Microsoft.Extensions.Logging.Abstractions for Unity"
+    description: "Abstractions for logging in .NET applications, compatible with Unity."
+    version: "7.0.0"
+    nuget_id: "Microsoft.Extensions.Logging.Abstractions"
+    framework: "netstandard2.0"
+    keywords: ["logging", "abstractions", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
+
+  # System.Memory
+  - name: "com.klumhru.wrapper.system-memory"
+    display_name: "System.Memory for Unity"
+    description: "Provides types for memory management in Unity."
+    version: "4.6.3"
+    nuget_id: "System.Memory"
+    framework: "netstandard2.1"
+    keywords: ["memory", "management", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
+
   # System.IO.Pipelines
   - name: "com.klumhru.wrapper.system-io-pipelines"
     display_name: "System.IO.Pipelines for Unity"
@@ -107,6 +312,7 @@ nuget_packages:
     package_json_extra:
       license: "MIT"
       homepage: "https://github.com/dotnet/runtime"
+
   # System.Runtime.InteropServices
   - name: "com.klumhru.wrapper.system-runtime-interopservices"
     display_name: "System.Runtime.InteropServices for Unity"
@@ -118,6 +324,7 @@ nuget_packages:
     package_json_extra:
       license: "MIT"
       homepage: "https://github.com/dotnet/runtime"
+
   # System.Runtime.CompilerServices.Unsafe
   - name: "com.klumhru.wrapper.system-runtime-compiler"
     display_name: "System.Runtime.CompilerServices.Unsafe for Unity"
@@ -129,6 +336,7 @@ nuget_packages:
     package_json_extra:
       license: "MIT"
       homepage: "https://github.com/dotnet/runtime"
+
   # System.Buffers
   - name: "com.klumhru.wrapper.system-buffers"
     display_name: "System.Buffers for Unity"
@@ -140,6 +348,19 @@ nuget_packages:
     package_json_extra:
       license: "MIT"
       homepage: "https://github.com/dotnet/runtime"
+
+  # Microsoft.Extensions.DependencyInjection.Abstractions
+  # - name: "com.klumhru.wrapper.microsoft-extensions-dependency-injection-abstractions"
+  #   display_name: "Microsoft.Extensions.DependencyInjection.Abstractions for Unity"
+  #   description: "Abstractions for dependency injection in .NET applications, compatible with Unity."
+  #   version: "9.0.7"
+  #   nuget_id: "Microsoft.Extensions.DependencyInjection.Abstractions"
+  #   framework: "netstandard2.0"
+  #   keywords: ["dependency injection", "abstractions", "unity"]
+  #   package_json_extra:
+  #     license: "MIT"
+  #     homepage: "https://github.com/dotnet/runtime"
+
   # System.Diagnostics.DiagnosticSource
   - name: "com.klumhru.wrapper.system-diagnostics-diagnostic-source"
     display_name: "System.Diagnostics.DiagnosticSource for Unity"

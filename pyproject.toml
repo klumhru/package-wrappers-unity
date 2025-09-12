@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "unity-package-wrapper"
@@ -30,29 +30,31 @@ dependencies = [
     "packaging>=23.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "black>=23.0.0",
-    "flake8>=6.0.0",
-    "mypy>=1.5.0",
-    "pre-commit>=3.4.0",
-    "types-PyYAML>=6.0.0",
-    "types-requests>=2.31.0",
+[tool.poetry]
+package-mode = true
+
+# Use src/ layout for packaging discovery
+packages = [
+    { include = "unity_wrapper", from = "src" }
+]
+
+# Ensure typing marker is included in distributions
+include = [
+    "src/unity_wrapper/py.typed"
 ]
 
 [project.scripts]
 unity-wrapper = "unity_wrapper.cli:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-dir]
-"" = "src"
-
-[tool.setuptools.package-data]
-"unity_wrapper" = ["py.typed"]
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.4.0"
+"pytest-cov" = ">=4.1.0"
+black = ">=23.0.0"
+flake8 = ">=6.0.0"
+mypy = ">=1.5.0"
+"pre-commit" = ">=3.4.0"
+"types-PyYAML" = ">=6.0.0"
+"types-requests" = ">=2.31.0"
 
 [tool.black]
 line-length = 79

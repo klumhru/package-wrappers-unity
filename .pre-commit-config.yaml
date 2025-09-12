@@ -46,27 +46,27 @@ repos:
       # Run tests before commit
       - id: pytest
         name: pytest
-        entry: python -m pytest
+        entry: poetry
         language: system
-        args: ["tests/", "-v", "--cov=unity_wrapper", "--cov-fail-under=50"]
+        args: ["run", "pytest", "tests/", "-v", "--cov=unity_wrapper", "--cov-fail-under=50"]
         pass_filenames: false
         stages: [pre-commit]
 
       # Run make format to ensure code is formatted
       - id: make-format
         name: make format
-        entry: make
+        entry: poetry
         language: system
-        args: ["format"]
+        args: ["run", "make", "format"]
         pass_filenames: false
         stages: [pre-commit]
 
       # Run make lint for comprehensive linting
       - id: make-lint
         name: make lint
-        entry: make
+        entry: poetry
         language: system
-        args: ["lint"]
+        args: ["run", "make", "lint"]
         pass_filenames: false
         stages: [pre-commit]
 
