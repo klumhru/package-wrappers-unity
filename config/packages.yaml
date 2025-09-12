@@ -103,7 +103,7 @@ packages:
   - name: "com.klumhru.wrapper.unitask"
     display_name: "UniTask for Unity"
     description: "A fast and efficient alternative to C# async/await for Unity."
-    version: "2.5.10"
+    version: "2.5.10-1"
     source:
       type: git
       url: "https://github.com/Cysharp/UniTask.git"
