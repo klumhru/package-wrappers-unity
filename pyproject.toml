@@ -44,7 +44,7 @@ include = [
 ]
 
 [project.scripts]
-unity-wrapper = "unity_wrapper.cli:main"
+unity-wrapper = "unity_wrapper.cli:cli"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.4.0"
