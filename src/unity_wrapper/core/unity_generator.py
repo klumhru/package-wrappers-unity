@@ -481,15 +481,33 @@ class UnityGenerator:
     def _parse_author(
         self, author: Union[str, Dict[str, str]]
     ) -> Dict[str, str]:
-        """Parse author string or object into UPM author object format.
-
-        Supports formats:
-        - Dict: Pass through with validation/defaults
-        - "Name <email@domain.com>"
-        - "Name"
-        - "" (empty string)
-
-        Returns UPM-compliant author object with name, email, and url fields.
+        """
+        Parse an author specification into a Unity Package Manager (UPM)
+        author object.
+        This method accepts either a dictionary or a string representing
+        the author, and returns a dictionary with 'name', 'email', and 'url'
+        fields as required by UPM.
+        Args:
+            author (Union[str, Dict[str, str]]): The author information.
+            Supported formats:
+                - dict: {'name': str, 'email': str, 'url': str}
+                    (missing keys default to empty string)
+                - str: "Name <email@domain.com>"
+                - str: "Name"
+                - str: "" (empty string)
+        Returns:
+            Dict[str, str]: A dictionary with keys:
+                - 'name': The author's name (str).
+                - 'email': The author's email address (str, may be empty).
+                - 'url': The author's URL (str, may be empty).
+        Examples:
+            >>> _parse_author("Jane Doe <jane@example.com>")
+            {'name': 'Jane Doe', 'email': 'jane@example.com', 'url': ''}
+            >>> _parse_author("Jane Doe")
+            {'name': 'Jane Doe', 'email': '', 'url': ''}
+            >>> _parse_author({"name": "Jane Doe",
+                               "email": "jane@example.com"})
+            {'name': 'Jane Doe', 'email': 'jane@example.com', 'url': ''}
         """
         # If already a dict, validate and return with defaults
         if isinstance(author, dict):
