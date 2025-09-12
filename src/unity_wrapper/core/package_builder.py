@@ -103,7 +103,7 @@ class PackageBuilder:
         asmdef_name = package_config.get("asmdef_name", "")
         # Generate assembly definition if namespace and asmdef_name
         # are specified
-        if namespace and asmdef_name != "":
+        if namespace and asmdef_name:
             asmdef_content = self._generate_assembly_definition(package_config)
             self.unity_generator.write_assembly_definition(
                 runtime_dir, asmdef_name, asmdef_content
@@ -455,7 +455,7 @@ class PackageBuilder:
 
 > **⚠️ IMPORTANT DISCLAIMER ⚠️**
 >
-> This Unity package is a community-created wrapper and is **NOT officially \n
+> This Unity package is a community-created wrapper and is **NOT officially
 > affiliated with, endorsed by, or supported by {author_name}**.
 >
 > - The wrapper author has **no affiliation** with {author_name}
