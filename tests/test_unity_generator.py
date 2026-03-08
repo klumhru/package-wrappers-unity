@@ -118,6 +118,83 @@ def test_organize_runtime_structure_preserves_existing_structure(
     assert (package_dir / "package.json").exists()
 
 
+def test_organize_runtime_structure_exclude_paths_with_existing_runtime(
+    temp_directories: Tuple[Path, Path, Path],
+) -> None:
+    """Test that exclude_paths omits matching dirs when source has Runtime."""
+    source_dir, package_dir, templates_dir = temp_directories
+    generator = UnityGenerator(templates_dir)
+
+    # Build a UniTask-like structure: Runtime/ with External/ subdirectory
+    runtime_source = source_dir / "Runtime"
+    runtime_source.mkdir()
+    (runtime_source / "UniTask.cs").write_text("// core")
+    external_dir = runtime_source / "External"
+    external_dir.mkdir()
+    tmp_dir = external_dir / "TextMeshPro"
+    tmp_dir.mkdir()
+    (tmp_dir / "TMP.cs").write_text("// TMP ext")
+    (external_dir / "DOTween.cs").write_text("// DOTween ext")
+
+    runtime_dir = generator.organize_runtime_structure(
+        source_dir, package_dir, exclude_paths=["External"]
+    )
+
+    assert (runtime_dir / "UniTask.cs").exists()
+    assert not (runtime_dir / "External").exists()
+    assert not (runtime_dir / "External" / "TextMeshPro" / "TMP.cs").exists()
+
+
+def test_organize_runtime_structure_exclude_paths_without_runtime_folder(
+    temp_directories: Tuple[Path, Path, Path],
+) -> None:
+    """Test exclude_paths works when source has no pre-existing Runtime."""
+    source_dir, package_dir, templates_dir = temp_directories
+    generator = UnityGenerator(templates_dir)
+
+    # Source without a Runtime/ folder but with subdirs to exclude
+    (source_dir / "core.cs").write_text("// core")
+    external_dir = source_dir / "External"
+    external_dir.mkdir()
+    (external_dir / "ext.cs").write_text("// ext")
+
+    runtime_dir = generator.organize_runtime_structure(
+        source_dir, package_dir, exclude_paths=["External"]
+    )
+
+    assert (runtime_dir / "core.cs").exists()
+    assert not (runtime_dir / "External").exists()
+
+
+def test_organize_runtime_structure_exclude_nested_path(
+    temp_directories: Tuple[Path, Path, Path],
+) -> None:
+    """Test excluding a nested subdirectory by relative path."""
+    source_dir, package_dir, templates_dir = temp_directories
+    generator = UnityGenerator(templates_dir)
+
+    runtime_source = source_dir / "Runtime"
+    runtime_source.mkdir()
+    (runtime_source / "core.cs").write_text("// core")
+    ext = runtime_source / "External"
+    ext.mkdir()
+    tmp = ext / "TMP"
+    tmp.mkdir()
+    (tmp / "tmp.cs").write_text("// TMP")
+    dotween = ext / "DOTween"
+    dotween.mkdir()
+    (dotween / "dt.cs").write_text("// DOTween")
+
+    # Only exclude External/TMP, keep External/DOTween
+    runtime_dir = generator.organize_runtime_structure(
+        source_dir, package_dir, exclude_paths=["External/TMP"]
+    )
+
+    assert (runtime_dir / "core.cs").exists()
+    assert not (runtime_dir / "External" / "TMP").exists()
+    assert (runtime_dir / "External" / "DOTween" / "dt.cs").exists()
+
+
 class TestGeneratePackageJsonVersion:
     """generate_package_json strips leading 'v' from version strings."""
 

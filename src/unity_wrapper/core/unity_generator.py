@@ -226,11 +226,62 @@ class UnityGenerator:
 
         return type_mapping.get(suffix, "DefaultAsset")
 
+    @staticmethod
+    def _build_exclude_ignore(root: Path, exclude_paths: List[str]) -> Any:
+        """Return a ``shutil.copytree`` ignore callable.
+
+        Each entry in *exclude_paths* is matched against the name of each
+        item being copied OR against its path relative to *root* (POSIX
+        separators, no leading slash).  A trailing ``/`` in an entry is
+        stripped before matching.
+
+        Examples::
+
+            exclude_paths=["External"]
+            # skips Runtime/External/ wherever it appears
+
+            exclude_paths=["External/TMP"]
+            # skips only Runtime/External/TMP/
+        """
+        normalized = [p.rstrip("/").rstrip("\\") for p in exclude_paths]
+
+        def _ignore(src: str, names: List[str]) -> set:
+            src_path = Path(src)
+            ignored: set = set()
+            for name in names:
+                rel = (src_path / name).relative_to(root)
+                rel_str = rel.as_posix()
+                for excl in normalized:
+                    if (
+                        name == excl
+                        or rel_str == excl
+                        or rel_str.startswith(excl + "/")
+                    ):
+                        ignored.add(name)
+                        break
+            return ignored
+
+        return _ignore
+
     def organize_runtime_structure(
-        self, source_dir: Path, package_dir: Path
+        self,
+        source_dir: Path,
+        package_dir: Path,
+        exclude_paths: Optional[List[str]] = None,
     ) -> Path:
-        """Organize files into Unity package structure with Runtime folder."""
+        """Organize files into Unity package structure with Runtime folder.
+
+        Args:
+            source_dir: Root of the extracted source tree.
+            package_dir: Destination Unity package directory.
+            exclude_paths: Optional list of paths (relative to the Runtime
+                root) or directory names to exclude from the copy.  Trailing
+                slashes are ignored.  For example ``["External"]`` will omit
+                the ``Runtime/External/`` subtree entirely.
+        """
         import shutil
+
+        effective_excludes: List[str] = exclude_paths or []
 
         # Check if source directory already has a Runtime folder
         source_runtime_dir = source_dir / "Runtime"
@@ -242,7 +293,14 @@ class UnityGenerator:
             if runtime_dir.exists():
                 shutil.rmtree(runtime_dir)
 
-            shutil.copytree(source_runtime_dir, runtime_dir)
+            ignore_fn = (
+                self._build_exclude_ignore(
+                    source_runtime_dir, effective_excludes
+                )
+                if effective_excludes
+                else None
+            )
+            shutil.copytree(source_runtime_dir, runtime_dir, ignore=ignore_fn)
 
             # Also copy any other files/folders at the root level
             if source_dir.exists():
@@ -260,30 +318,56 @@ class UnityGenerator:
                                 dirs_exist_ok=True,
                             )
 
-            logger.info(
-                f"Found existing Runtime folder, copied directly to "
-                f"{runtime_dir}"
-            )
+            if effective_excludes:
+                logger.info(
+                    f"Found existing Runtime folder, copied to {runtime_dir}"
+                    f" (excluded: {effective_excludes})"
+                )
+            else:
+                logger.info(
+                    f"Found existing Runtime folder, copied directly to "
+                    f"{runtime_dir}"
+                )
         else:
             # Original behavior: create Runtime folder
             # and copy all content into it
             runtime_dir = package_dir / "Runtime"
             runtime_dir.mkdir(parents=True, exist_ok=True)
 
+            ignore_fn = (
+                self._build_exclude_ignore(source_dir, effective_excludes)
+                if effective_excludes
+                else None
+            )
+
             # Copy all source files to Runtime directory
             if source_dir.exists():
                 for item in source_dir.iterdir():
+                    if ignore_fn and item.name in ignore_fn(
+                        str(source_dir), [item.name]
+                    ):
+                        logger.debug(f"Excluded: {item.name}")
+                        continue
                     if item.is_file():
                         shutil.copy2(item, runtime_dir)
                     elif item.is_dir():
                         shutil.copytree(
-                            item, runtime_dir / item.name, dirs_exist_ok=True
+                            item,
+                            runtime_dir / item.name,
+                            dirs_exist_ok=True,
+                            ignore=ignore_fn,
                         )
 
-            logger.info(
-                f"Organized source files into Runtime structure at "
-                f"{runtime_dir}"
-            )
+            if effective_excludes:
+                logger.info(
+                    f"Organized source files into Runtime structure at "
+                    f"{runtime_dir} (excluded: {effective_excludes})"
+                )
+            else:
+                logger.info(
+                    f"Organized source files into Runtime structure at "
+                    f"{runtime_dir}"
+                )
 
         # Remove C# project files that aren't needed in Unity
         if self._should_remove_csharp_project_files():
