@@ -30,7 +30,8 @@ class PackageBuilder:
 
         # Set up working directory for git operations
         self.work_dir = work_dir or (Path.cwd() / ".unity_wrapper_temp")
-        self.git_manager = GitManager(self.work_dir)
+        cache_dir = self.config.get_git_cache_dir()
+        self.git_manager = GitManager(self.work_dir, cache_dir=cache_dir)
 
         # Set up NuGet manager
         self.nuget_manager = NuGetManager(self.work_dir / "nuget")
@@ -190,10 +191,38 @@ class PackageBuilder:
         return package_output_dir
 
     def build_all_packages(self) -> List[Path]:
-        """Build all configured packages."""
-        package_names = self.config.get_all_package_names()
-        built_packages: List[Path] = []
+        """Build all configured packages.
 
+        Git repositories are fetched in parallel before Unity package
+        generation begins, reducing total build time significantly.
+        """
+        package_names = self.config.get_all_package_names()
+        max_workers = self.config.get_max_parallel_clones()
+
+        # Phase 1: fetch all git repos in parallel
+        git_repos = []
+        for name in package_names:
+            if self.config.get_package_type(name) != "git":
+                continue
+            pkg_cfg = self.config.get_package_config(name)
+            if pkg_cfg:
+                git_repos.append(
+                    {
+                        "url": pkg_cfg["source"]["url"],
+                        "ref": pkg_cfg["source"]["ref"],
+                        "name": name,
+                    }
+                )
+
+        if git_repos:
+            logger.info(
+                f"Prefetching {len(git_repos)} git repo(s) with"
+                f" max_workers={max_workers}"
+            )
+            self.git_manager.prefetch_all(git_repos, max_workers=max_workers)
+
+        # Phase 2: generate Unity packages sequentially
+        built_packages: List[Path] = []
         for package_name in package_names:
             try:
                 package_path = self.build_package(package_name)
