@@ -154,6 +154,7 @@ jobs:
         if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Publishing packages to GitHub Package Registry..."
           make publish REGISTRY=github OWNER=${{ github.repository_owner }}
