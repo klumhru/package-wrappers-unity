@@ -56,6 +56,7 @@ class PackagePublisher:
         self.config = self.REGISTRY_CONFIGS[registry]
         self.token = token or self._get_token_from_env()
         self.owner = owner or self._get_owner_from_env()
+        self.repo = self._get_repo_from_env()
 
         # Check authentication requirements
         if self.config["requires_auth"] and not self.token:
@@ -84,6 +85,70 @@ class PackagePublisher:
         # Fall back to generic owner environment variable
         return os.getenv("PACKAGE_OWNER")
 
+    def _get_repo_from_env(self) -> Optional[str]:
+        """Get repository name from GITHUB_REPOSITORY env var."""
+        github_repo = os.getenv("GITHUB_REPOSITORY")
+        if github_repo and "/" in github_repo:
+            return github_repo.split("/", 1)[1]
+        return None
+
+    def _compute_scoped_name(self, name: str) -> str:
+        """Return the scoped package name for the current registry."""
+        if (
+            self.registry in ("github", "npmjs")
+            and self.owner
+            and not name.startswith("@")
+        ):
+            return f"@{self.owner}/{name}"
+        return name
+
+    def _package_browse_url(
+        self, scoped_name: str, original_name: str, version: str
+    ) -> str:
+        """Return a browser URL to inspect the published package.
+
+        Args:
+            scoped_name: Fully-scoped npm package name.
+            original_name: Unscoped Unity package name.
+            version: Package version string.
+
+        Returns:
+            Browser-accessible URL for the package.
+        """
+        if self.registry == "github":
+            if self.owner and self.repo:
+                pkg_slug = scoped_name.split("/")[-1]
+                return (
+                    f"https://github.com/{self.owner}/{self.repo}"
+                    f"/pkgs/npm/{pkg_slug}"
+                )
+            if self.owner:
+                return f"https://github.com/{self.owner}?tab=packages"
+            return "https://github.com"
+        if self.registry == "npmjs":
+            return (
+                f"https://www.npmjs.com/package/{scoped_name}" f"/v/{version}"
+            )
+        if self.registry == "openupm":
+            return f"https://openupm.com/packages/{original_name}/"
+        return ""
+
+    def _is_publish_conflict(
+        self, error: subprocess.CalledProcessError
+    ) -> bool:
+        """Return True if the error indicates a 409 version conflict."""
+        stderr = (error.stderr or "").lower()
+        return any(
+            indicator in stderr
+            for indicator in (
+                "e409",
+                "409 conflict",
+                "already exists",
+                "cannot publish over",
+                "epublishconflict",
+            )
+        )
+
     def _check_npm_available(self) -> None:
         """Check if npm is available."""
         try:
@@ -105,35 +170,44 @@ class PackagePublisher:
         if not package_json_path.exists():
             raise FileNotFoundError(f"package.json not found in {package_dir}")
 
-        # Load package.json
         with open(package_json_path, "r", encoding="utf-8") as f:
             package_json = json.load(f)
 
-        package_name = package_json["name"]
+        original_name = package_json["name"]
         version = package_json["version"]
-
-        logger.info(
-            f"Publishing {package_name}@{version} to {self.registry} registry"
+        scoped_name = self._compute_scoped_name(original_name)
+        browse_url = self._package_browse_url(
+            scoped_name, original_name, version
         )
 
-        # Create a temporary directory for npm operations
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
+        logger.info(
+            f"Publishing {scoped_name}@{version} to "
+            f"{self.registry} registry"
+        )
 
-            # Copy package to temp directory
-            package_copy = temp_path / "package"
-            self._copy_package(package_dir, package_copy)
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_path = Path(temp_dir)
 
-            # Update package.json for the target registry
-            self._update_package_json(package_copy / "package.json")
+                package_copy = temp_path / "package"
+                self._copy_package(package_dir, package_copy)
+                self._update_package_json(package_copy / "package.json")
+                self._configure_npm(temp_path)
+                self._npm_publish(package_copy)
 
-            # Configure npm for the target registry
-            self._configure_npm(temp_path)
-
-            # Publish using npm
-            self._npm_publish(package_copy)
-
-        logger.info(f"Successfully published {package_name}@{version}")
+            logger.info(
+                f"Successfully published {scoped_name}@{version}. "
+                f"View at: {browse_url}"
+            )
+        except subprocess.CalledProcessError as e:
+            if self._is_publish_conflict(e):
+                logger.warning(
+                    f"{scoped_name}@{version} already published "
+                    f"(version conflict). View at: {browse_url}"
+                )
+            else:
+                logger.error(f"npm publish failed: {e.stderr}")
+                raise
 
     def _copy_package(self, source: Path, dest: Path) -> None:
         """Copy package directory to destination."""
@@ -146,20 +220,9 @@ class PackagePublisher:
         with open(package_json_path, "r", encoding="utf-8") as f:
             package_json = json.load(f)
 
-        # Update package name with scope if needed
         original_name = package_json["name"]
+        package_json["name"] = self._compute_scoped_name(original_name)
 
-        if self.registry == "github" and self.owner:
-            # GitHub requires scoped packages
-            if not original_name.startswith("@"):
-                package_json["name"] = f"@{self.owner}/{original_name}"
-        elif self.registry == "npmjs" and self.owner:
-            # npmjs can use scoped packages
-            if not original_name.startswith("@"):
-                package_json["name"] = f"@{self.owner}/{original_name}"
-        # OpenUPM doesn't require scoping
-
-        # Add repository information
         if self.owner and self.registry in ["github", "npmjs"]:
             package_json["repository"] = {
                 "type": "git",
@@ -169,11 +232,9 @@ class PackagePublisher:
                 ),
             }
 
-        # Add publishConfig for GitHub
         if self.registry == "github":
             package_json["publishConfig"] = {"registry": self.config["url"]}
 
-        # Write updated package.json
         with open(package_json_path, "w", encoding="utf-8") as f:
             json.dump(package_json, f, indent=2, ensure_ascii=False)
 
@@ -201,18 +262,14 @@ class PackagePublisher:
             )
             return
 
-        try:
-            result = subprocess.run(
-                ["npm", "publish"],
-                cwd=package_dir,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            logger.debug(f"npm publish output: {result.stdout}")
-        except subprocess.CalledProcessError as e:
-            logger.error(f"npm publish failed: {e.stderr}")
-            raise
+        result = subprocess.run(
+            ["npm", "publish"],
+            cwd=package_dir,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        logger.debug(f"npm publish output: {result.stdout}")
 
     def check_package_exists(self, package_name: str, version: str) -> bool:
         """Check if a package version already exists in the registry."""
@@ -220,10 +277,7 @@ class PackagePublisher:
             logger.info("OpenUPM package existence check not implemented")
             return False
 
-        scoped_name = package_name
-        if self.registry in ["github", "npmjs"] and self.owner:
-            if not package_name.startswith("@"):
-                scoped_name = f"@{self.owner}/{package_name}"
+        scoped_name = self._compute_scoped_name(package_name)
 
         try:
             subprocess.run(
