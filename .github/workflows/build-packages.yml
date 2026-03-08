@@ -117,6 +117,15 @@ jobs:
           node-version: '18'
           registry-url: 'https://npm.pkg.github.com'
 
+      - name: Restore Pages registry cache
+        if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
+        uses: actions/cache/restore@v4
+        with:
+          path: dist/registry
+          key: pages-registry-${{ github.run_id }}
+          restore-keys: |
+            pages-registry-
+
       - name: Create settings file for CI
         if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
         run: |
@@ -155,6 +164,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_PAT }}
           GITHUB_TOKEN: ${{ secrets.PACKAGES_PAT }}
+          PAGES_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         run: |
           echo "Publishing packages to GitHub Package Registry..."
           make publish REGISTRY=github OWNER=${{ github.repository_owner }}
@@ -169,6 +179,13 @@ jobs:
             echo "registry-exists=false" >> $GITHUB_OUTPUT
             echo "dist/registry/ not found or empty, skipping Pages deploy"
           fi
+
+      - name: Save Pages registry cache
+        if: steps.check-registry.outputs.registry-exists == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: dist/registry
+          key: pages-registry-${{ github.run_id }}
 
       - name: Configure GitHub Pages
         if: steps.check-registry.outputs.registry-exists == 'true'
