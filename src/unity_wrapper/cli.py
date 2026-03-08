@@ -217,6 +217,7 @@ def publish(
         else:
             click.echo("Publishing all packages...")
             published_count = 0
+            failed_count = 0
 
             for package_dir in output_path.iterdir():
                 if (
@@ -232,8 +233,15 @@ def publish(
                             f"Failed to publish {package_dir.name}: {e}",
                             err=True,
                         )
+                        failed_count += 1
 
             click.echo(f"Successfully published {published_count} packages")
+            if failed_count:
+                click.echo(
+                    f"{failed_count} package(s) failed to publish.",
+                    err=True,
+                )
+                sys.exit(1)
 
     except Exception as e:
         click.echo(f"Error publishing packages: {e}", err=True)

@@ -270,12 +270,16 @@ class PackagePublisher:
             package_json["name"] = self._compute_scoped_name(original_name)
 
         if self.owner and self.registry in ["github", "npmjs"]:
-            package_json["repository"] = {
-                "type": "git",
-                "url": (
+            if self.registry == "github" and self.repo:
+                repo_url = f"https://github.com/{self.owner}/{self.repo}.git"
+            else:
+                repo_url = (
                     f"https://github.com/{self.owner}/"
                     f"{original_name}.package-wrappers-unity.git"
-                ),
+                )
+            package_json["repository"] = {
+                "type": "git",
+                "url": repo_url,
             }
 
         with open(package_json_path, "w", encoding="utf-8") as f:

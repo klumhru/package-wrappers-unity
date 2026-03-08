@@ -329,6 +329,28 @@ class TestUpdatePackageJson:
         assert pkg["repository"]["type"] == "git"
         assert "myorg" in pkg["repository"]["url"]
 
+    def test_github_uses_actual_repo_when_available(
+        self, tmp_path: Path
+    ) -> None:
+        """When GITHUB_REPOSITORY is set, repository.url points to it."""
+        self._write_pkg(tmp_path)
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(stdout="10.0.0", returncode=0)
+            with patch.dict(
+                os.environ,
+                {"GITHUB_REPOSITORY": "myorg/package-wrappers-unity"},
+                clear=False,
+            ):
+                pub = PackagePublisher(
+                    registry="github", token="tok", owner="myorg"
+                )
+        pub._update_package_json(tmp_path / "package.json")
+        pkg = self._read_pkg(tmp_path)
+        assert (
+            pkg["repository"]["url"]
+            == "https://github.com/myorg/package-wrappers-unity.git"
+        )
+
     def test_github_no_publish_config(self, tmp_path: Path) -> None:
         """publishConfig is not needed: we PUT directly with the scoped URL."""
         self._write_pkg(tmp_path)
