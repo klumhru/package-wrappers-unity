@@ -111,21 +111,30 @@ GitHub infers the scope from the `repository` field when the package name is not
 
 ## What the Unity Consumer Side Looks Like
 
-For reference, here is how a Unity project consumes these packages.
+GitHub Packages always returns scoped names in packument responses (e.g.
+`@klumhru/com.foo.bar`).  UPM validates the `name` field in the packument
+and fails with:
+
+```
+Expected to find progress reporting for @klumhru/com.foo.bar. No packages loaded.
+```
+
+To work around this, the pipeline additionally generates a **static npm
+registry** deployed to GitHub Pages.  The Pages registry serves packuments
+with the correct unscoped names; tarballs are still downloaded from GitHub
+Packages.
 
 ### `Packages/manifest.json`
 
-The registry `url` **must include the owner scope path** (`/@klumhru`), not just
-the bare `npm.pkg.github.com` domain. This is because GitHub Packages stores
-all packages under a scoped path and only responds to queries at that path;
-querying the bare domain for an unscoped package name returns 404.
+Point the scoped registry at the GitHub Pages URL, **not** at
+`npm.pkg.github.com`:
 
 ```json
 {
   "scopedRegistries": [
     {
-      "name": "GitHub - klumhru",
-      "url": "https://npm.pkg.github.com/@klumhru",
+      "name": "klumhru packages",
+      "url": "https://klumhru.github.io/package-wrappers-unity",
       "scopes": [
         "com.klumhru"
       ]
@@ -137,54 +146,61 @@ querying the bare domain for an unscoped package name returns 404.
 }
 ```
 
-When UPM resolves `com.klumhru.wrapper.some-package`, it appends the package
-name to the registry `url`, producing:
-`https://npm.pkg.github.com/@klumhru/com.klumhru.wrapper.some-package` —
-which is the exact path where the package lives in GitHub Packages.
+The GitHub Pages URL is `https://{owner}.github.io/{repo}`.  UPM appends
+the package name to produce
+`https://klumhru.github.io/package-wrappers-unity/com.klumhru.wrapper.some-package`,
+which serves a static JSON packument with the unscoped name.
 
 ### `.upmconfig.toml` (in user home directory)
 
-The token auth entry **must match the registry `url` exactly** (including the
-`/@klumhru` path), otherwise authentication fails silently.
+Auth is needed for the **tarball download** (which comes from GitHub Packages).
+The key must match the base GitHub Packages domain so it covers all tarball
+URLs:
 
 ```toml
-[npmAuth."https://npm.pkg.github.com/@klumhru"]
+[npmAuth."https://npm.pkg.github.com"]
 token = "ghp_XXXXX"
 alwaysAuth = true
 ```
+
+No auth entry is needed for the GitHub Pages URL — it is a public static site.
 
 ---
 
 ## Summary of the Implemented Publishing Strategy
 
-The pipeline uses **direct HTTP PUT** to GitHub Packages instead of the npm
-CLI, which allows full control over the request:
+1. **`npm pack`** creates the tarball.  The `package.json` inside the tarball
+   keeps the **unscoped** UPM name (`com.klumhru.wrapper.some-package`).
 
-1. **`npm pack`** creates the tarball. The `package.json` inside the tarball
-   keeps the **unscoped** UPM name (`com.klumhru.wrapper.some-package`), so
-   Unity can install and resolve it correctly after download.
+2. A **packument** (scoped name in body, scoped PUT URL) is sent directly to
+   GitHub Packages via HTTP PUT.  This is required for GitHub routing — the
+   npm CLI cannot be used because it always derives the PUT URL from the
+   unscoped `name` field, which GitHub rejects with 404.
 
-2. A **packument** document is constructed with:
-   - `name`: scoped name (`@klumhru/com.klumhru.wrapper.some-package`) — required by GitHub for routing
-   - `_attachments` key: `@klumhru/com.klumhru.wrapper.some-package-{version}.tgz` — GitHub requires the attachment key to be `{packument.name}-{version}.tgz`
+3. After a successful publish, a **static packument JSON** is written to
+   `dist/registry/{package_name}.json` with:
+   - `name`: **unscoped** (e.g. `com.klumhru.wrapper.some-package`)
+   - `dist.tarball`: pointing to the GitHub Packages tarball URL
 
-3. The packument is **PUT to** `https://npm.pkg.github.com/@klumhru/com.klumhru.wrapper.some-package`.
+4. The CI workflow deploys `dist/registry/` to **GitHub Pages** via
+   `actions/deploy-pages`.
 
-4. **Versions must use strict semver** (e.g. `31.1.0`, not `v31.1.0`). The
-   pipeline strips any leading `v` automatically.
+5. **Versions must use strict semver** (e.g. `31.1.0`, not `v31.1.0`).  The
+   pipeline strips any leading `v` from git tag–style versions automatically.
+
+> **Enable GitHub Pages** in repository Settings → Pages → Source: GitHub
+> Actions, before the first deployment.
 
 ---
 
 ## Verification
 
-After publishing, verify the package is accessible:
-
 ```bash
-# Requires a valid token with read:packages scope
-curl -H "Authorization: Bearer ghp_XXXXX" \
-  "https://npm.pkg.github.com/@klumhru/com.klumhru.wrapper.some-package"
-```
+# 1. Check that the static packument (unscoped name) is served by GitHub Pages
+curl "https://klumhru.github.io/package-wrappers-unity/com.klumhru.wrapper.some-package"
 
-The response lists available versions. The `name` field in the response will
-be the scoped name; the tarball's internal `package.json` contains the unscoped
-UPM name.
+# 2. Check that the tarball is accessible (requires GitHub token)
+curl -H "Authorization: Bearer ghp_XXXXX" \
+  "https://npm.pkg.github.com/@klumhru/com.klumhru.wrapper.some-package/-/@klumhru/com.klumhru.wrapper.some-package-1.0.0.tgz" \
+  --head
+```

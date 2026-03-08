@@ -13,6 +13,8 @@ from typing import Any, Dict, Optional
 
 import requests as http_requests
 
+from unity_wrapper.utils.pages_publisher import PagesPublisher
+
 logger = logging.getLogger(__name__)
 
 
@@ -171,8 +173,22 @@ class PackagePublisher:
                 "npm is not available. Please install Node.js and npm."
             ) from e
 
-    def publish_package(self, package_dir: Path) -> None:
-        """Publish a Unity package to the configured registry."""
+    def publish_package(
+        self,
+        package_dir: Path,
+        registry_dir: Optional[Path] = None,
+    ) -> None:
+        """Publish a Unity package to the configured registry.
+
+        Args:
+            package_dir: Path to the built Unity package directory.
+            registry_dir: Optional directory for static packument files
+                used by the GitHub Pages registry.  Only used when
+                ``registry == 'github'``.  Defaults to
+                ``dist/registry`` relative to the current working
+                directory when ``registry == 'github'`` and this
+                argument is ``None``.
+        """
         package_json_path = package_dir / "package.json"
 
         if not package_json_path.exists():
@@ -193,6 +209,9 @@ class PackagePublisher:
             f"{self.registry} registry"
         )
 
+        if self.registry == "github" and registry_dir is None:
+            registry_dir = Path("dist/registry")
+
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
@@ -200,7 +219,9 @@ class PackagePublisher:
                 self._copy_package(package_dir, package_copy)
                 self._update_package_json(package_copy / "package.json")
                 if self.registry == "github":
-                    self._github_publish_direct(package_copy)
+                    self._github_publish_direct(
+                        package_copy, registry_dir=registry_dir
+                    )
                 else:
                     self._configure_npm(temp_path)
                     self._npm_publish(package_copy)
@@ -275,13 +296,21 @@ class PackagePublisher:
                     f.write(f"//registry.npmjs.org/:_authToken={self.token}\n")
             # OpenUPM submission is manual, not via npm publish
 
-    def _github_publish_direct(self, package_dir: Path) -> None:
+    def _github_publish_direct(
+        self,
+        package_dir: Path,
+        registry_dir: Optional[Path] = None,
+    ) -> None:
         """Publish to GitHub Packages using the npm registry HTTP API.
 
         Bypasses the npm CLI so we can PUT directly to the scoped URL
         (``/@owner/com.foo.bar``) that GitHub requires for routing, while
         keeping the ``name`` field inside the tarball unscoped
         (``com.foo.bar``) so Unity Package Manager can resolve it.
+
+        After a successful publish, writes a static packument JSON file
+        to ``registry_dir`` (if provided) with the unscoped name so that
+        a GitHub Pages-hosted registry can serve it to UPM consumers.
 
         Raises:
             _PublishConflict: If the version already exists (HTTP 409).
@@ -319,6 +348,7 @@ class PackagePublisher:
         # version: ``@owner/name-version.tgz``.  GitHub's npm registry
         # derives the attachment by matching this exact key format.
         attachment_key = f"{scoped_name}-{version}.tgz"
+        tarball_url = f"{self.config['url']}/{scoped_name}/-/{attachment_key}"
 
         version_meta: Dict[str, Any] = {
             **pkg_data,
@@ -327,10 +357,7 @@ class PackagePublisher:
             "dist": {
                 "integrity": integrity,
                 "shasum": shasum,
-                "tarball": (
-                    f"{self.config['url']}/{scoped_name}/-/"
-                    f"{attachment_key}"
-                ),
+                "tarball": tarball_url,
             },
         }
 
@@ -359,10 +386,36 @@ class PackagePublisher:
         )
 
         if response.status_code == 409:
+            # Version already exists — still update the static registry so
+            # the Pages packument stays current (e.g. on first run after
+            # adding PagesPublisher, or after a manual re-publish).
+            if registry_dir is not None:
+                PagesPublisher().update_registry(
+                    registry_dir=registry_dir,
+                    unscoped_name=original_name,
+                    version=version,
+                    version_meta=version_meta,
+                    tarball_url=tarball_url,
+                    shasum=shasum,
+                    integrity=integrity,
+                    description=pkg_data.get("description"),
+                )
             raise _PublishConflict(scoped_name)
 
         response.raise_for_status()
         logger.debug(f"GitHub publish HTTP status: {response.status_code}")
+
+        if registry_dir is not None:
+            PagesPublisher().update_registry(
+                registry_dir=registry_dir,
+                unscoped_name=original_name,
+                version=version,
+                version_meta=version_meta,
+                tarball_url=tarball_url,
+                shasum=shasum,
+                integrity=integrity,
+                description=pkg_data.get("description"),
+            )
 
     def _npm_publish(self, package_dir: Path) -> None:
         """Publish package using npm (non-GitHub registries)."""

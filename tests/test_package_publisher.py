@@ -523,3 +523,88 @@ class TestGithubPublishDirect:
             with patch("pathlib.Path.read_bytes", return_value=b"x"):
                 with pytest.raises(_PublishConflict):
                     pub._github_publish_direct(tmp_path)
+
+    @patch("unity_wrapper.utils.package_publisher.http_requests.put")
+    def test_pages_publisher_called_on_success(
+        self, mock_put: MagicMock, tmp_path: Path
+    ) -> None:
+        """PagesPublisher.update_registry is called after a successful PUT."""
+        self._setup_pkg(tmp_path)
+        pub = _make_publisher(registry="github", owner="myorg")
+        mock_put.return_value = MagicMock(status_code=200)
+        registry_dir = tmp_path / "registry"
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="com.foo.bar-1.0.0.tgz\n",
+                stderr="",
+            )
+            with patch("pathlib.Path.read_bytes", return_value=b"x"):
+                with patch(
+                    "unity_wrapper.utils.package_publisher"
+                    ".PagesPublisher.update_registry"
+                ) as mock_pages:
+                    pub._github_publish_direct(
+                        tmp_path, registry_dir=registry_dir
+                    )
+
+        mock_pages.assert_called_once()
+        call_kwargs = mock_pages.call_args[1]
+        assert call_kwargs["unscoped_name"] == "com.foo.bar"
+        assert call_kwargs["version"] == "1.0.0"
+        assert call_kwargs["registry_dir"] == registry_dir
+
+    @patch("unity_wrapper.utils.package_publisher.http_requests.put")
+    def test_pages_publisher_skipped_when_no_registry_dir(
+        self, mock_put: MagicMock, tmp_path: Path
+    ) -> None:
+        """PagesPublisher is not called when registry_dir is None."""
+        self._setup_pkg(tmp_path)
+        pub = _make_publisher(registry="github", owner="myorg")
+        mock_put.return_value = MagicMock(status_code=200)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="com.foo.bar-1.0.0.tgz\n",
+                stderr="",
+            )
+            with patch("pathlib.Path.read_bytes", return_value=b"x"):
+                with patch(
+                    "unity_wrapper.utils.package_publisher"
+                    ".PagesPublisher.update_registry"
+                ) as mock_pages:
+                    pub._github_publish_direct(tmp_path, registry_dir=None)
+
+        mock_pages.assert_not_called()
+
+    @patch("unity_wrapper.utils.package_publisher.http_requests.put")
+    def test_pages_publisher_called_on_conflict(
+        self, mock_put: MagicMock, tmp_path: Path
+    ) -> None:
+        """Static packument is written even when GitHub returns 409."""
+        from unity_wrapper.utils.package_publisher import _PublishConflict
+
+        self._setup_pkg(tmp_path)
+        pub = _make_publisher(registry="github", owner="myorg")
+        mock_put.return_value = MagicMock(status_code=409)
+        registry_dir = tmp_path / "registry"
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="com.foo.bar-1.0.0.tgz\n",
+                stderr="",
+            )
+            with patch("pathlib.Path.read_bytes", return_value=b"x"):
+                with patch(
+                    "unity_wrapper.utils.package_publisher"
+                    ".PagesPublisher.update_registry"
+                ) as mock_pages:
+                    with pytest.raises(_PublishConflict):
+                        pub._github_publish_direct(
+                            tmp_path, registry_dir=registry_dir
+                        )
+
+        mock_pages.assert_called_once()

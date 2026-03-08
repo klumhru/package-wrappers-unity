@@ -123,3 +123,4 @@ celerybeat.pid
 
 # End of https://www.toptal.com/developers/gitignore/api/python
 .npmrc
+dist/registry/
