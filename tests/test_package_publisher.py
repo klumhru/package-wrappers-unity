@@ -501,6 +501,8 @@ class TestGithubPublishDirect:
         body = mock_put.call_args[1]["json"]
         assert body["name"] == "@myorg/com.foo.bar"
         assert body["versions"]["1.0.0"]["name"] == "@myorg/com.foo.bar"
+        # Attachment key must be scoped name + version for GitHub routing
+        assert "@myorg/com.foo.bar-1.0.0.tgz" in body["_attachments"]
 
     @patch("unity_wrapper.utils.package_publisher.http_requests.put")
     def test_conflict_raises_publish_conflict(

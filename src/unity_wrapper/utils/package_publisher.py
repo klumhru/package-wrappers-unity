@@ -315,6 +315,11 @@ class PackagePublisher:
 
         # Registry metadata uses the scoped name for GitHub routing.
         # The tarball attachment contains the files with unscoped name.
+        # The attachment key must be the scoped name followed by the
+        # version: ``@owner/name-version.tgz``.  GitHub's npm registry
+        # derives the attachment by matching this exact key format.
+        attachment_key = f"{scoped_name}-{version}.tgz"
+
         version_meta: Dict[str, Any] = {
             **pkg_data,
             "name": scoped_name,
@@ -324,7 +329,7 @@ class PackagePublisher:
                 "shasum": shasum,
                 "tarball": (
                     f"{self.config['url']}/{scoped_name}/-/"
-                    f"{original_name}-{version}.tgz"
+                    f"{attachment_key}"
                 ),
             },
         }
@@ -335,7 +340,7 @@ class PackagePublisher:
             "dist-tags": {"latest": version},
             "versions": {version: version_meta},
             "_attachments": {
-                f"{original_name}-{version}.tgz": {
+                attachment_key: {
                     "content_type": "application/octet-stream",
                     "data": base64.b64encode(tarball_data).decode(),
                     "length": len(tarball_data),
