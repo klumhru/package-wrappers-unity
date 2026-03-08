@@ -36,6 +36,8 @@ packages:
       allowUnsafeCode: true
     namespace: "YetAnotherHttpHandler"
     keywords: ["http", "handler", "unity"]
+    dependencies:
+      "com.klumhru.wrapper.system-io-pipelines": "9.0.7"
     package_json_extra:
       license: "MIT"
       homepage: "https://github.com/Cysharp/YetAnotherHttpHandler"
@@ -55,6 +57,8 @@ packages:
       - "UniTask"
     namespace: "MessagePipe"
     keywords: ["messaging", "unity"]
+    dependencies:
+      "com.klumhru.wrapper.unitask": "2.5.10-1"
     package_json_extra:
       license: "MIT"
       homepage: "https://github.com/Cysharp/MessagePipe"
@@ -110,6 +114,29 @@ packages:
     asmdef_name: "UniTask"
     namespace: "Cysharp.Threading.Tasks"
     keywords: ["async", "await", "unity"]
+    # versionDefines are present in the upstream asmdef; they are preserved
+    # automatically when the source ships its own UniTask.asmdef.  These
+    # extras serve as a fallback if the source asmdef is absent.
+    asmdef_extra:
+      versionDefines:
+        - name: "com.unity.modules.ugui"
+          expression: ""
+          define: "UNITASK_UGUI_SUPPORT"
+        - name: "com.unity.modules.assetbundle"
+          expression: ""
+          define: "UNITASK_ASSETBUNDLE_SUPPORT"
+        - name: "com.unity.modules.physics"
+          expression: ""
+          define: "UNITASK_PHYSICS_SUPPORT"
+        - name: "com.unity.modules.physics2d"
+          expression: ""
+          define: "UNITASK_PHYSICS2D_SUPPORT"
+        - name: "com.unity.modules.particlesystem"
+          expression: ""
+          define: "UNITASK_PARTICLESYSTEM_SUPPORT"
+        - name: "com.unity.modules.unitywebrequest"
+          expression: ""
+          define: "UNITASK_WEBREQUEST_SUPPORT"
     package_json_extra:
       license: "MIT"
       homepage: "https://github.com/Cysharp/UniTask"

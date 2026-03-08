@@ -1,4 +1,5 @@
-.PHONY: install install-dev test lint format clean build publish watch help
+.PHONY: install install-dev test lint format clean build publish watch help \
+        registry-up registry-down registry-logs
 
 # Variables
 POETRY := poetry
@@ -103,6 +104,17 @@ install-hooks: ## Install pre-commit hooks
 run-hooks: ## Run pre-commit hooks on all files
 	@echo "Running pre-commit hooks on all files..."
 	$(POETRY) run pre-commit run --all-files
+
+# Local npm registry (Verdaccio) — proxies GitHub Pages, fixes UPM gzip issue
+registry-up: ## Start the local Verdaccio registry proxy (Docker required)
+	docker compose up -d
+	@echo "✓ Registry running at http://localhost:4873"
+
+registry-down: ## Stop the local Verdaccio registry proxy
+	docker compose down
+
+registry-logs: ## Stream logs from the local Verdaccio registry
+	docker compose logs -f registry
 
 # Quality assurance target that runs all checks
 qa: format lint test ## Run all quality assurance checks (format, lint, test)

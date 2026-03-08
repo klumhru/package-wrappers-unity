@@ -124,6 +124,52 @@ poetry run unity-wrapper check
 poetry run unity-wrapper publish
 ```
 
+## 📦 Local Package Registry (for Unity developers)
+
+Packages are built by GitHub CI and hosted on GitHub Pages as the authoritative source.
+To consume them in Unity, run a local nginx proxy that forwards requests to GitHub Pages
+while suppressing HTTP gzip encoding — this is required because GitHub Pages applies
+`Content-Encoding: gzip` to binary files, which causes Unity UPM to fail with
+"stream size mismatch" or sha512 integrity errors.
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — start on login is
+  recommended so the registry is always available without manual steps.
+
+### Start the registry
+
+```bash
+# Start the local proxy (once; Docker Desktop keeps it running on login)
+make registry-up
+
+# Check logs
+make registry-logs
+
+# Stop
+make registry-down
+```
+
+The registry will be available at **`http://localhost:4873`**.
+
+### Configure Unity
+
+In your Unity project's `Packages/manifest.json`, add (or update) the scoped registry:
+
+```json
+{
+  "scopedRegistries": [
+    {
+      "name": "klumhru packages",
+      "url": "http://localhost:4873",
+      "scopes": ["com.klumhru"]
+    }
+  ]
+}
+```
+
+Once Unity resolves the packages via the proxy they are cached locally in
+`Library/PackageCache` — subsequent opens do not hit the network.
+
 ## 📁 Project Structure
 
 ```
