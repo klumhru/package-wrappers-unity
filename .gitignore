@@ -61,6 +61,7 @@ Thumbs.db
 
 # Unity Package Wrapper specific
 .unity_wrapper_temp/
+.git-cache/
 packages/
 *.log
 

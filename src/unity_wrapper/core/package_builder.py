@@ -30,7 +30,8 @@ class PackageBuilder:
 
         # Set up working directory for git operations
         self.work_dir = work_dir or (Path.cwd() / ".unity_wrapper_temp")
-        self.git_manager = GitManager(self.work_dir)
+        cache_dir = self.config.get_git_cache_dir()
+        self.git_manager = GitManager(self.work_dir, cache_dir=cache_dir)
 
         # Set up NuGet manager
         self.nuget_manager = NuGetManager(self.work_dir / "nuget")
@@ -67,12 +68,15 @@ class PackageBuilder:
         source_config = package_config["source"]
         extract_path = package_config.get("extract_path", ".")
 
-        # Clone or update repository
-        repo_path = self.git_manager.clone_or_update(
-            url=source_config["url"],
-            ref=source_config["ref"],
-            name=package_name,
-        )
+        # Clone or update repository (skip if already prefetched)
+        if package_name in self.git_manager.repos:
+            repo_path = self.git_manager.cache_dir / package_name
+        else:
+            repo_path = self.git_manager.clone_or_update(
+                url=source_config["url"],
+                ref=source_config["ref"],
+                name=package_name,
+            )
 
         # Create package output directory
         package_output_dir = self.output_dir / package_name
@@ -190,10 +194,38 @@ class PackageBuilder:
         return package_output_dir
 
     def build_all_packages(self) -> List[Path]:
-        """Build all configured packages."""
-        package_names = self.config.get_all_package_names()
-        built_packages: List[Path] = []
+        """Build all configured packages.
 
+        Git repositories are fetched in parallel before Unity package
+        generation begins, reducing total build time significantly.
+        """
+        package_names = self.config.get_all_package_names()
+        max_workers = self.config.get_max_parallel_clones()
+
+        # Phase 1: fetch all git repos in parallel
+        git_repos = []
+        for name in package_names:
+            if self.config.get_package_type(name) != "git":
+                continue
+            pkg_cfg = self.config.get_package_config(name)
+            if pkg_cfg:
+                git_repos.append(
+                    {
+                        "url": pkg_cfg["source"]["url"],
+                        "ref": pkg_cfg["source"]["ref"],
+                        "name": name,
+                    }
+                )
+
+        if git_repos:
+            logger.info(
+                f"Prefetching {len(git_repos)} git repo(s) with"
+                f" max_workers={max_workers}"
+            )
+            self.git_manager.prefetch_all(git_repos, max_workers=max_workers)
+
+        # Phase 2: generate Unity packages sequentially
+        built_packages: List[Path] = []
         for package_name in package_names:
             try:
                 package_path = self.build_package(package_name)
@@ -235,7 +267,7 @@ class PackageBuilder:
         source_config = package_config["source"]
 
         # Check if repository exists and if ref has changed
-        repo_path = self.work_dir / package_name
+        repo_path = self.git_manager.cache_dir / package_name
         if repo_path.exists():
             current_info = self.git_manager.get_repo_info(package_name)
             if current_info and current_info["ref"] != source_config["ref"]:

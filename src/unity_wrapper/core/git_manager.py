@@ -2,8 +2,9 @@
 
 import shutil
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from git import Repo, GitCommandError
 
 
@@ -13,15 +14,24 @@ logger = logging.getLogger(__name__)
 class GitManager:
     """Manages Git repositories for Unity package building."""
 
-    def __init__(self, work_dir: Path):
-        """Initialize GitManager with working directory."""
+    def __init__(self, work_dir: Path, cache_dir: Optional[Path] = None):
+        """Initialize GitManager with working and optional cache directories.
+
+        Args:
+            work_dir: Temporary working directory, cleaned up after use.
+            cache_dir: Persistent directory for git clones. When provided,
+                clones are stored here and survive between builds. Defaults
+                to work_dir when not specified.
+        """
         self.work_dir = Path(work_dir)
         self.work_dir.mkdir(parents=True, exist_ok=True)
+        self.cache_dir = Path(cache_dir) if cache_dir else self.work_dir
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.repos: Dict[str, Repo] = {}
 
     def clone_or_update(self, url: str, ref: str, name: str) -> Path:
         """Clone or update a repository to the specified ref."""
-        repo_path = self.work_dir / name
+        repo_path = self.cache_dir / name
 
         try:
             if repo_path.exists():
@@ -36,25 +46,74 @@ class GitManager:
                 current_ref = self._get_current_ref(repo)
                 if current_ref != ref:
                     logger.info(
-                        f"Ref changed from {current_ref} to {ref}, updating..."
+                        f"Ref changed from {current_ref} to {ref},"
+                        " updating..."
                     )
                     self._checkout_ref(repo, ref)
-                    return repo_path
                 else:
                     logger.info(f"Repository {name} already at ref {ref}")
-                    return repo_path
+                    # For branch refs, fast-forward to the latest remote
+                    # commit that was just fetched.  Tags and commit hashes
+                    # cannot be fast-forwarded, so failures are silenced.
+                    try:
+                        repo.git.reset("--hard", f"origin/{ref}")
+                        logger.debug(f"Fast-forwarded {name} to origin/{ref}")
+                    except GitCommandError:
+                        pass
+
+                self.repos[name] = repo
+                return repo_path
             else:
                 # Clone new repository
                 logger.info(f"Cloning repository: {url}")
                 repo = Repo.clone_from(url, repo_path)
                 self._checkout_ref(repo, ref)
-
-            self.repos[name] = repo
-            return repo_path
+                self.repos[name] = repo
+                return repo_path
 
         except GitCommandError as e:
             logger.error(f"Git operation failed for {name}: {e}")
             raise
+
+    def prefetch_all(
+        self,
+        repos: List[Dict[str, str]],
+        max_workers: int = 4,
+    ) -> None:
+        """Clone or update all repositories in parallel.
+
+        Args:
+            repos: List of dicts with keys ``url``, ``ref``, and ``name``.
+            max_workers: Maximum number of concurrent git operations.
+
+        Raises:
+            RuntimeError: If one or more repos fail, after all have been
+                attempted.
+        """
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(
+                    self.clone_or_update,
+                    r["url"],
+                    r["ref"],
+                    r["name"],
+                ): r["name"]
+                for r in repos
+            }
+            errors: Dict[str, Exception] = {}
+            for future in as_completed(futures):
+                repo_name = futures[future]
+                try:
+                    future.result()
+                except Exception as exc:
+                    logger.error(f"Failed to fetch repo '{repo_name}': {exc}")
+                    errors[repo_name] = exc
+
+        if errors:
+            failed = ", ".join(sorted(errors.keys()))
+            raise RuntimeError(
+                f"Failed to fetch {len(errors)} repo(s): {failed}"
+            )
 
     def _checkout_ref(self, repo: Repo, ref: str) -> None:
         """Checkout a specific ref (branch, tag, or commit)."""
@@ -110,7 +169,7 @@ class GitManager:
         if repo_name not in self.repos:
             raise ValueError(f"Repository {repo_name} not found")
 
-        repo_path = self.work_dir / repo_name
+        repo_path = self.cache_dir / repo_name
         source_full_path = repo_path / source_path
 
         if not source_full_path.exists():
@@ -129,10 +188,42 @@ class GitManager:
         )
 
     def cleanup(self) -> None:
-        """Clean up temporary repositories."""
+        """Clean up temporary working directory; preserve the cache."""
         for _, repo in self.repos.items():
             repo.close()
 
-        if self.work_dir.exists():
-            shutil.rmtree(self.work_dir)
-        logger.info("Cleaned up temporary repositories")
+        work_dir = self.work_dir.resolve()
+        cache_dir = self.cache_dir.resolve()
+
+        if not work_dir.exists():
+            logger.info(
+                "Temporary working directory does not exist; nothing to clean"
+            )
+            return
+
+        if work_dir == cache_dir:
+            logger.info(
+                "Temporary working directory is the git cache; nothing removed"
+            )
+            return
+
+        # Cache is nested inside work_dir: remove everything except the cache.
+        if cache_dir.is_relative_to(work_dir):
+            for entry in work_dir.iterdir():
+                if entry.resolve() == cache_dir:
+                    continue
+                if entry.is_dir():
+                    shutil.rmtree(entry)
+                else:
+                    entry.unlink()
+            logger.info(
+                "Cleaned up temporary working directory contents"
+                " (git cache preserved)"
+            )
+            return
+
+        # Cache is outside work_dir: safe to remove the whole directory.
+        shutil.rmtree(work_dir)
+        logger.info(
+            "Cleaned up temporary working directory (git cache preserved)"
+        )

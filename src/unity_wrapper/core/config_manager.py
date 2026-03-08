@@ -132,6 +132,32 @@ class ConfigManager:
         else:
             return self.config_path.parent / cast(str, work_dir)
 
+    def get_git_cache_dir(self) -> Path:
+        """Get persistent git clone cache directory."""
+        build = self.get_build_settings()
+        cache_dir = build.get("git_cache_dir", ".git-cache")
+        if Path(cache_dir).is_absolute():
+            return Path(cast(str, cache_dir))
+        return self.config_path.parent / cast(str, cache_dir)
+
+    def get_max_parallel_clones(self) -> int:
+        """Get maximum number of parallel git clone/fetch workers."""
+        build = self.get_build_settings()
+        raw = build.get("max_parallel_clones", 4)
+        try:
+            value = int(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Invalid value for build.max_parallel_clones: {raw!r}."
+                " Must be a positive integer."
+            ) from exc
+        if value <= 0:
+            raise ValueError(
+                f"Invalid value for build.max_parallel_clones: {value!r}."
+                " Must be a positive integer."
+            )
+        return value
+
     def get_github_settings(self) -> Dict[str, Any]:
         """Get GitHub publishing settings."""
         return cast(Dict[str, Any], self.settings_config.get("github", {}))
