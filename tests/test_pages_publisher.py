@@ -66,7 +66,7 @@ class TestPagesPublisherCreate:
     ) -> None:
         path = _write_version(publisher, registry_dir)
         assert path.exists()
-        assert path.name == "com.foo.bar.json"
+        assert path.name == "com.foo.bar"
 
     def test_packument_has_unscoped_name(
         self,
@@ -74,7 +74,7 @@ class TestPagesPublisherCreate:
         registry_dir: Path,
     ) -> None:
         _write_version(publisher, registry_dir)
-        doc = json.loads((registry_dir / "com.foo.bar.json").read_text())
+        doc = json.loads((registry_dir / "com.foo.bar").read_text())
         assert doc["name"] == "com.foo.bar"
 
     def test_packument_dist_tags_latest(
@@ -83,7 +83,7 @@ class TestPagesPublisherCreate:
         registry_dir: Path,
     ) -> None:
         _write_version(publisher, registry_dir, version="2.0.0")
-        doc = json.loads((registry_dir / "com.foo.bar.json").read_text())
+        doc = json.loads((registry_dir / "com.foo.bar").read_text())
         assert doc["dist-tags"]["latest"] == "2.0.0"
 
     def test_version_entry_has_dist(
@@ -92,7 +92,7 @@ class TestPagesPublisherCreate:
         registry_dir: Path,
     ) -> None:
         _write_version(publisher, registry_dir, version="1.0.0")
-        doc = json.loads((registry_dir / "com.foo.bar.json").read_text())
+        doc = json.loads((registry_dir / "com.foo.bar").read_text())
         dist = doc["versions"]["1.0.0"]["dist"]
         assert dist["shasum"] == "abc123"
         assert dist["integrity"] == "sha512-xxx=="
@@ -105,7 +105,7 @@ class TestPagesPublisherCreate:
     ) -> None:
         """Even if version_meta has scoped name, output must be unscoped."""
         _write_version(publisher, registry_dir)
-        doc = json.loads((registry_dir / "com.foo.bar.json").read_text())
+        doc = json.loads((registry_dir / "com.foo.bar").read_text())
         assert doc["versions"]["1.0.0"]["name"] == "com.foo.bar"
 
     def test_version_entry_id_removed(
@@ -115,7 +115,7 @@ class TestPagesPublisherCreate:
     ) -> None:
         """_id from version_meta (scoped) should not appear in output."""
         _write_version(publisher, registry_dir)
-        doc = json.loads((registry_dir / "com.foo.bar.json").read_text())
+        doc = json.loads((registry_dir / "com.foo.bar").read_text())
         assert "_id" not in doc["versions"]["1.0.0"]
 
 
@@ -129,7 +129,7 @@ class TestPagesPublisherUpdate:
     ) -> None:
         _write_version(publisher, registry_dir, version="1.0.0")
         _write_version(publisher, registry_dir, version="1.1.0")
-        doc = json.loads((registry_dir / "com.foo.bar.json").read_text())
+        doc = json.loads((registry_dir / "com.foo.bar").read_text())
         assert "1.0.0" in doc["versions"]
         assert "1.1.0" in doc["versions"]
 
@@ -140,7 +140,7 @@ class TestPagesPublisherUpdate:
     ) -> None:
         _write_version(publisher, registry_dir, version="1.0.0")
         _write_version(publisher, registry_dir, version="1.1.0")
-        doc = json.loads((registry_dir / "com.foo.bar.json").read_text())
+        doc = json.loads((registry_dir / "com.foo.bar").read_text())
         assert doc["dist-tags"]["latest"] == "1.1.0"
 
     def test_fixes_scoped_name_in_existing_file(
@@ -155,11 +155,11 @@ class TestPagesPublisherUpdate:
             "dist-tags": {"latest": "0.9.0"},
             "versions": {"0.9.0": {"name": "@owner/com.foo.bar"}},
         }
-        (registry_dir / "com.foo.bar.json").write_text(json.dumps(bad))
+        (registry_dir / "com.foo.bar").write_text(json.dumps(bad))
 
         _write_version(publisher, registry_dir, version="1.0.0")
 
-        doc = json.loads((registry_dir / "com.foo.bar.json").read_text())
+        doc = json.loads((registry_dir / "com.foo.bar").read_text())
         assert doc["name"] == "com.foo.bar"
         assert "0.9.0" in doc["versions"]  # old version preserved
         assert "1.0.0" in doc["versions"]  # new version added
@@ -186,5 +186,5 @@ class TestPagesPublisherTarballUrl:
             shasum="deadbeef",
             integrity="sha512-yyy==",
         )
-        doc = json.loads((registry_dir / "com.foo.bar.json").read_text())
+        doc = json.loads((registry_dir / "com.foo.bar").read_text())
         assert doc["versions"]["1.0.0"]["dist"]["tarball"] == expected

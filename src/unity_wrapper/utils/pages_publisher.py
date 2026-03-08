@@ -29,7 +29,8 @@ class PagesPublisher:
     """Generates static npm packument files for a GitHub Pages registry.
 
     Each package gets a single JSON file at
-    ``{registry_dir}/{package_name}.json`` following the npm packument
+    ``{registry_dir}/{package_name}`` (no file extension) following the
+    npm packument
     format.  Multiple versions accumulate in the same file; the
     ``dist-tags.latest`` tag always points to the most-recently-added
     version.
@@ -83,7 +84,7 @@ class PagesPublisher:
             Path to the written packument JSON file.
         """
         registry_dir.mkdir(parents=True, exist_ok=True)
-        packument_path = registry_dir / f"{unscoped_name}.json"
+        packument_path = registry_dir / unscoped_name
 
         packument = self._load_or_create(
             packument_path, unscoped_name, description
