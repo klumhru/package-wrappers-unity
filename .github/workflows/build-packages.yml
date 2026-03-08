@@ -159,18 +159,29 @@ jobs:
           echo "Publishing packages to GitHub Package Registry..."
           make publish REGISTRY=github OWNER=${{ github.repository_owner }}
 
+      - name: Check if static registry was generated
+        id: check-registry
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if [ -d "dist/registry" ] && [ "$(ls -A dist/registry)" ]; then
+            echo "registry-exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "registry-exists=false" >> $GITHUB_OUTPUT
+            echo "dist/registry/ not found or empty, skipping Pages deploy"
+          fi
+
       - name: Configure GitHub Pages
-        if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
+        if: steps.check-registry.outputs.registry-exists == 'true'
         uses: actions/configure-pages@v4
 
       - name: Upload static registry to GitHub Pages
-        if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
+        if: steps.check-registry.outputs.registry-exists == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist/registry/
 
       - name: Deploy static registry to GitHub Pages
-        if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
+        if: steps.check-registry.outputs.registry-exists == 'true'
         uses: actions/deploy-pages@v4
 
   test:
