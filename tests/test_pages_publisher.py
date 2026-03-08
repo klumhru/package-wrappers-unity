@@ -188,3 +188,91 @@ class TestPagesPublisherTarballUrl:
         )
         doc = json.loads((registry_dir / "com.foo.bar").read_text())
         assert doc["versions"]["1.0.0"]["dist"]["tarball"] == expected
+
+
+class TestPagesPublisherTarballStorage:
+    """When tarball_data + pages_base_url are provided, the tarball is
+    saved to the registry dir and the packument uses the Pages URL."""
+
+    def test_tarball_file_written(
+        self,
+        publisher: PagesPublisher,
+        registry_dir: Path,
+    ) -> None:
+        publisher.update_registry(
+            registry_dir=registry_dir,
+            unscoped_name="com.foo.bar",
+            version="1.0.0",
+            version_meta=dict(_VERSION_META),
+            tarball_url="https://fallback/",
+            shasum="abc",
+            integrity="sha512-x==",
+            tarball_data=b"tarball-bytes",
+            pages_base_url="https://owner.github.io/repo",
+        )
+        tarball_path = registry_dir / "com.foo.bar-1.0.0.tgz"
+        assert tarball_path.exists()
+        assert tarball_path.read_bytes() == b"tarball-bytes"
+
+    def test_packument_url_points_to_pages(
+        self,
+        publisher: PagesPublisher,
+        registry_dir: Path,
+    ) -> None:
+        publisher.update_registry(
+            registry_dir=registry_dir,
+            unscoped_name="com.foo.bar",
+            version="1.0.0",
+            version_meta=dict(_VERSION_META),
+            tarball_url="https://fallback/",
+            shasum="abc",
+            integrity="sha512-x==",
+            tarball_data=b"tarball-bytes",
+            pages_base_url="https://owner.github.io/repo",
+        )
+        doc = json.loads((registry_dir / "com.foo.bar").read_text())
+        expected = "https://owner.github.io/repo/com.foo.bar-1.0.0.tgz"
+        assert doc["versions"]["1.0.0"]["dist"]["tarball"] == expected
+
+    def test_pages_base_url_trailing_slash_stripped(
+        self,
+        publisher: PagesPublisher,
+        registry_dir: Path,
+    ) -> None:
+        publisher.update_registry(
+            registry_dir=registry_dir,
+            unscoped_name="com.foo.bar",
+            version="2.0.0",
+            version_meta=dict(_VERSION_META),
+            tarball_url="https://fallback/",
+            shasum="abc",
+            integrity="sha512-x==",
+            tarball_data=b"data",
+            pages_base_url="https://owner.github.io/repo/",
+        )
+        doc = json.loads((registry_dir / "com.foo.bar").read_text())
+        url = doc["versions"]["2.0.0"]["dist"]["tarball"]
+        assert not url.startswith(
+            "https://owner.github.io/repo//"
+        ), "double slash in URL"
+        assert url == "https://owner.github.io/repo/com.foo.bar-2.0.0.tgz"
+
+    def test_fallback_url_used_when_no_tarball_data(
+        self,
+        publisher: PagesPublisher,
+        registry_dir: Path,
+    ) -> None:
+        fallback = "https://npm.pkg.github.com/download/x"
+        publisher.update_registry(
+            registry_dir=registry_dir,
+            unscoped_name="com.foo.bar",
+            version="1.0.0",
+            version_meta=dict(_VERSION_META),
+            tarball_url=fallback,
+            shasum="abc",
+            integrity="sha512-x==",
+            pages_base_url="https://owner.github.io/repo",
+            # tarball_data intentionally omitted
+        )
+        doc = json.loads((registry_dir / "com.foo.bar").read_text())
+        assert doc["versions"]["1.0.0"]["dist"]["tarball"] == fallback

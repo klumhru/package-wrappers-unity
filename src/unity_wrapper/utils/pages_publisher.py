@@ -11,10 +11,14 @@ responses (e.g. ``@klumhru/com.foo.bar``).  Unity Package Manager
 resolve packages whose packument ``name`` field contains a ``@scope/``
 prefix.
 
-By generating static packument files with the correct unscoped name
-and hosting them on GitHub Pages, UPM can resolve packages normally.
-The tarball download URLs still point to GitHub Packages, so the
-existing ``.upmconfig.toml`` token is reused for auth.
+Additionally, GitHub Packages tarball downloads always require
+authentication even for public packages.  UPM cannot apply
+``.upmconfig.toml`` auth to tarball URLs on a different host than the
+configured scopedRegistry, so auth is never sent.
+
+By generating static packument files *and* saving the tarballs to the
+same ``registry_dir``, everything is served from the public GitHub
+Pages site — no authentication required.
 """
 
 import json
@@ -30,10 +34,13 @@ class PagesPublisher:
 
     Each package gets a single JSON file at
     ``{registry_dir}/{package_name}`` (no file extension) following the
-    npm packument
-    format.  Multiple versions accumulate in the same file; the
-    ``dist-tags.latest`` tag always points to the most-recently-added
-    version.
+    npm packument format.  Multiple versions accumulate in the same
+    file; the ``dist-tags.latest`` tag always points to the
+    most-recently-added version.
+
+    When ``tarball_data`` and ``pages_base_url`` are provided, the
+    tarball is written alongside the packument so that UPM can download
+    it directly from the public Pages site — no authentication needed.
 
     Example usage::
 
@@ -42,10 +49,12 @@ class PagesPublisher:
             registry_dir=Path("dist/registry"),
             unscoped_name="com.foo.bar",
             version="1.2.3",
-            version_meta={...},           # npm version object
-            tarball_url="https://...",
+            version_meta={...},
+            tarball_url="https://fallback...",
             shasum="abc123",
             integrity="sha512-...",
+            tarball_data=b"...",
+            pages_base_url="https://owner.github.io/repo",
         )
     """
 
@@ -59,32 +68,58 @@ class PagesPublisher:
         shasum: str,
         integrity: str,
         description: Optional[str] = None,
+        tarball_data: Optional[bytes] = None,
+        pages_base_url: Optional[str] = None,
     ) -> Path:
         """Create or update the static packument file for a package.
 
         If the file already exists, the new version is merged into the
         existing packument and ``dist-tags.latest`` is updated.
 
+        When ``tarball_data`` and ``pages_base_url`` are both provided,
+        the tarball is saved to
+        ``{registry_dir}/{unscoped_name}-{version}.tgz`` and the
+        packument tarball URL is set to the corresponding Pages URL.
+        This makes tarball downloads auth-free for public packages.
+
         Args:
-            registry_dir: Directory where packument JSON files are stored.
+            registry_dir: Directory where packument JSON files are
+                stored.
             unscoped_name: Unscoped UPM package name (e.g.
                 ``com.foo.bar``).
             version: Semver version string (e.g. ``1.2.3``).
             version_meta: npm version metadata dict to embed under the
-                version key.  The ``name`` field will be overwritten with
-                ``unscoped_name``; ``dist`` will be set from the
+                version key.  The ``name`` field will be overwritten
+                with ``unscoped_name``; ``dist`` will be set from the
                 ``tarball_url``, ``shasum``, and ``integrity`` args.
-            tarball_url: Publicly accessible (or auth-gated) tarball URL.
+            tarball_url: Fallback tarball URL used when
+                ``tarball_data``/``pages_base_url`` are not provided.
             shasum: SHA-1 hex digest of the tarball.
             integrity: SRI integrity string (e.g. ``sha512-...``).
             description: Optional human-readable description; used only
                 when creating a new packument file.
+            tarball_data: Raw tarball bytes.  When provided together
+                with ``pages_base_url``, the tarball is saved to the
+                registry directory and the packument URL is updated to
+                point at the Pages host.
+            pages_base_url: Base URL of the GitHub Pages registry (e.g.
+                ``https://owner.github.io/repo``).  Required when
+                ``tarball_data`` is provided.
 
         Returns:
             Path to the written packument JSON file.
         """
         registry_dir.mkdir(parents=True, exist_ok=True)
         packument_path = registry_dir / unscoped_name
+
+        # Save tarball to Pages and use its public URL when possible so
+        # UPM can download without authentication.
+        if tarball_data is not None and pages_base_url is not None:
+            tarball_filename = f"{unscoped_name}-{version}.tgz"
+            tarball_path = registry_dir / tarball_filename
+            tarball_path.write_bytes(tarball_data)
+            tarball_url = f"{pages_base_url.rstrip('/')}/{tarball_filename}"
+            logger.info(f"Saved tarball to Pages registry: {tarball_path}")
 
         packument = self._load_or_create(
             packument_path, unscoped_name, description

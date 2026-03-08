@@ -394,18 +394,18 @@ class PackagePublisher:
             # the Pages packument stays current (e.g. on first run after
             # adding PagesPublisher, or after a manual re-publish).
             if registry_dir is not None:
-                real_url = self._fetch_github_tarball_url(
-                    scoped_name, version, headers
-                )
+                pages_base_url = os.getenv("PAGES_BASE_URL")
                 PagesPublisher().update_registry(
                     registry_dir=registry_dir,
                     unscoped_name=original_name,
                     version=version,
                     version_meta=version_meta,
-                    tarball_url=real_url or tarball_url,
+                    tarball_url=tarball_url,
                     shasum=shasum,
                     integrity=integrity,
                     description=pkg_data.get("description"),
+                    tarball_data=tarball_data,
+                    pages_base_url=pages_base_url,
                 )
             raise _PublishConflict(scoped_name)
 
@@ -413,58 +413,19 @@ class PackagePublisher:
         logger.debug(f"GitHub publish HTTP status: {response.status_code}")
 
         if registry_dir is not None:
-            real_url = self._fetch_github_tarball_url(
-                scoped_name, version, headers
-            )
+            pages_base_url = os.getenv("PAGES_BASE_URL")
             PagesPublisher().update_registry(
                 registry_dir=registry_dir,
                 unscoped_name=original_name,
                 version=version,
                 version_meta=version_meta,
-                tarball_url=real_url or tarball_url,
+                tarball_url=tarball_url,
                 shasum=shasum,
                 integrity=integrity,
                 description=pkg_data.get("description"),
+                tarball_data=tarball_data,
+                pages_base_url=pages_base_url,
             )
-
-    def _fetch_github_tarball_url(
-        self,
-        scoped_name: str,
-        version: str,
-        headers: Dict[str, str],
-    ) -> Optional[str]:
-        """Fetch the real tarball URL from GitHub Packages for a version.
-
-        GitHub Packages uses a ``/download/...`` URL format that differs
-        from the standard npm ``/-/name-version.tgz`` path.  This method
-        queries the packument to obtain the authoritative download URL.
-
-        Args:
-            scoped_name: Scoped package name (e.g. ``@owner/com.foo.bar``).
-            version: Version string (e.g. ``1.2.3``).
-            headers: HTTP headers including Bearer auth token.
-
-        Returns:
-            Real tarball URL from GitHub Packages, or ``None`` on failure.
-        """
-        try:
-            url = f"{self.config['url']}/{scoped_name}"
-            resp = http_requests.get(url, headers=headers, timeout=30)
-            resp.raise_for_status()
-            data: Dict[str, Any] = resp.json()
-            tarball: Optional[str] = (
-                data.get("versions", {})
-                .get(version, {})
-                .get("dist", {})
-                .get("tarball")
-            )
-            return tarball
-        except Exception as exc:
-            logger.warning(
-                f"Could not fetch real tarball URL for "
-                f"{scoped_name}@{version}: {exc}"
-            )
-            return None
 
     def _npm_publish(self, package_dir: Path) -> None:
         """Publish package using npm (non-GitHub registries)."""

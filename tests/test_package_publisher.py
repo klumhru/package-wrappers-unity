@@ -578,6 +578,69 @@ class TestGithubPublishDirect:
         assert call_kwargs["registry_dir"] == registry_dir
 
     @patch("unity_wrapper.utils.package_publisher.http_requests.put")
+    def test_pages_publisher_passes_tarball_data(
+        self, mock_put: MagicMock, tmp_path: Path
+    ) -> None:
+        """tarball_data bytes are forwarded to PagesPublisher."""
+        self._setup_pkg(tmp_path)
+        pub = _make_publisher(registry="github", owner="myorg")
+        mock_put.return_value = MagicMock(status_code=200)
+        registry_dir = tmp_path / "registry"
+        tarball_bytes = b"fake-tarball-content"
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="com.foo.bar-1.0.0.tgz\n",
+                stderr="",
+            )
+            with patch("pathlib.Path.read_bytes", return_value=tarball_bytes):
+                with patch(
+                    "unity_wrapper.utils.package_publisher"
+                    ".PagesPublisher.update_registry"
+                ) as mock_pages:
+                    pub._github_publish_direct(
+                        tmp_path, registry_dir=registry_dir
+                    )
+
+        call_kwargs = mock_pages.call_args[1]
+        assert call_kwargs["tarball_data"] == tarball_bytes
+
+    @patch("unity_wrapper.utils.package_publisher.http_requests.put")
+    def test_pages_uses_pages_base_url_from_env(
+        self, mock_put: MagicMock, tmp_path: Path
+    ) -> None:
+        """PAGES_BASE_URL env var is forwarded to PagesPublisher."""
+        self._setup_pkg(tmp_path)
+        pub = _make_publisher(registry="github", owner="myorg")
+        mock_put.return_value = MagicMock(status_code=200)
+        registry_dir = tmp_path / "registry"
+
+        with patch.dict(
+            os.environ,
+            {"PAGES_BASE_URL": "https://myorg.github.io/my-repo"},
+        ):
+            with patch("subprocess.run") as mock_run:
+                mock_run.return_value = MagicMock(
+                    returncode=0,
+                    stdout="com.foo.bar-1.0.0.tgz\n",
+                    stderr="",
+                )
+                with patch("pathlib.Path.read_bytes", return_value=b"x"):
+                    with patch(
+                        "unity_wrapper.utils.package_publisher"
+                        ".PagesPublisher.update_registry"
+                    ) as mock_pages:
+                        pub._github_publish_direct(
+                            tmp_path, registry_dir=registry_dir
+                        )
+
+        call_kwargs = mock_pages.call_args[1]
+        assert call_kwargs["pages_base_url"] == (
+            "https://myorg.github.io/my-repo"
+        )
+
+    @patch("unity_wrapper.utils.package_publisher.http_requests.put")
     def test_pages_publisher_skipped_when_no_registry_dir(
         self, mock_put: MagicMock, tmp_path: Path
     ) -> None:
@@ -630,79 +693,3 @@ class TestGithubPublishDirect:
                         )
 
         mock_pages.assert_called_once()
-
-    @patch("unity_wrapper.utils.package_publisher.http_requests.get")
-    @patch("unity_wrapper.utils.package_publisher.http_requests.put")
-    def test_pages_uses_real_tarball_url_from_github(
-        self,
-        mock_put: MagicMock,
-        mock_get: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """Pages packument tarball_url comes from GitHub Packages GET."""
-        self._setup_pkg(tmp_path)
-        pub = _make_publisher(registry="github", owner="myorg")
-        mock_put.return_value = MagicMock(status_code=200)
-        real_url = (
-            "https://npm.pkg.github.com/download/"
-            "@myorg/com.foo.bar/1.0.0/abc123"
-        )
-        mock_get.return_value = MagicMock(
-            status_code=200,
-            json=lambda: {
-                "versions": {"1.0.0": {"dist": {"tarball": real_url}}}
-            },
-        )
-        registry_dir = tmp_path / "registry"
-
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="com.foo.bar-1.0.0.tgz\n",
-                stderr="",
-            )
-            with patch("pathlib.Path.read_bytes", return_value=b"x"):
-                with patch(
-                    "unity_wrapper.utils.package_publisher"
-                    ".PagesPublisher.update_registry"
-                ) as mock_pages:
-                    pub._github_publish_direct(
-                        tmp_path, registry_dir=registry_dir
-                    )
-
-        call_kwargs = mock_pages.call_args[1]
-        assert call_kwargs["tarball_url"] == real_url
-
-    @patch("unity_wrapper.utils.package_publisher.http_requests.get")
-    @patch("unity_wrapper.utils.package_publisher.http_requests.put")
-    def test_pages_falls_back_to_constructed_url_when_get_fails(
-        self,
-        mock_put: MagicMock,
-        mock_get: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """Falls back to constructed tarball URL when GitHub GET fails."""
-        self._setup_pkg(tmp_path)
-        pub = _make_publisher(registry="github", owner="myorg")
-        mock_put.return_value = MagicMock(status_code=200)
-        mock_get.side_effect = Exception("network error")
-        registry_dir = tmp_path / "registry"
-
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0,
-                stdout="com.foo.bar-1.0.0.tgz\n",
-                stderr="",
-            )
-            with patch("pathlib.Path.read_bytes", return_value=b"x"):
-                with patch(
-                    "unity_wrapper.utils.package_publisher"
-                    ".PagesPublisher.update_registry"
-                ) as mock_pages:
-                    pub._github_publish_direct(
-                        tmp_path, registry_dir=registry_dir
-                    )
-
-        call_kwargs = mock_pages.call_args[1]
-        # Falls back to constructed /-/ URL
-        assert "/-/" in call_kwargs["tarball_url"]
