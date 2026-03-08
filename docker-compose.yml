@@ -1,0 +1,11 @@
+services:
+  registry:
+    image: nginx:alpine
+    container_name: unity-package-registry
+    # Start automatically when Docker Desktop starts; restart after crashes.
+    restart: always
+    ports:
+      - "4873:4873"
+    volumes:
+      # Mount config read-only so the container picks up changes on restart.
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro

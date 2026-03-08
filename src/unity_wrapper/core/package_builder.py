@@ -102,16 +102,44 @@ class PackageBuilder:
             package_output_dir, package_json_content
         )
 
-        # Generate assembly definition if namespace is specified
+        # Generate assembly definition if namespace is specified, unless the
+        # source already ships one with the same name (e.g. UniTask).
+        # Preserving the source asmdef avoids clobbering versionDefines and
+        # other settings the upstream author tuned for Unity.
         namespace = package_config.get("namespace")
         asmdef_name = package_config.get("asmdef_name", "")
-        # Generate assembly definition if namespace and asmdef_name
-        # are specified
         if namespace and asmdef_name:
-            asmdef_content = self._generate_assembly_definition(package_config)
-            self.unity_generator.write_assembly_definition(
-                runtime_dir, asmdef_name, asmdef_content
-            )
+            existing_asmdef = runtime_dir / f"{asmdef_name}.asmdef"
+            if existing_asmdef.exists():
+                logger.info(
+                    f"Preserving existing asmdef '{asmdef_name}.asmdef' "
+                    f"from source (skipping generation)"
+                )
+                # Merge any asmdef_extra fields into the existing asmdef so
+                # that caller-specified overrides (e.g. allowUnsafeCode) are
+                # still respected.
+                asmdef_extra = package_config.get("asmdef_extra", {})
+                if asmdef_extra:
+                    import json
+
+                    with open(existing_asmdef, "r", encoding="utf-8") as f:
+                        existing_content = json.load(f)
+                    existing_content.update(asmdef_extra)
+                    with open(existing_asmdef, "w", encoding="utf-8") as f:
+                        json.dump(
+                            existing_content, f, indent=2, ensure_ascii=False
+                        )
+                    logger.info(
+                        f"Merged asmdef_extra into existing asmdef "
+                        f"'{asmdef_name}.asmdef'"
+                    )
+            else:
+                asmdef_content = self._generate_assembly_definition(
+                    package_config
+                )
+                self.unity_generator.write_assembly_definition(
+                    runtime_dir, asmdef_name, asmdef_content
+                )
 
         # Copy LICENSE file if available
         self._copy_license_file(repo_path, package_output_dir)
