@@ -276,3 +276,41 @@ class TestPagesPublisherTarballStorage:
         )
         doc = json.loads((registry_dir / "com.foo.bar").read_text())
         assert doc["versions"]["1.0.0"]["dist"]["tarball"] == fallback
+
+    def test_raises_when_tarball_data_without_pages_base_url(
+        self,
+        publisher: PagesPublisher,
+        registry_dir: Path,
+    ) -> None:
+        """Providing tarball_data without a valid pages_base_url raises."""
+        with pytest.raises(ValueError, match="pages_base_url is required"):
+            publisher.update_registry(
+                registry_dir=registry_dir,
+                unscoped_name="com.foo.bar",
+                version="1.0.0",
+                version_meta=dict(_VERSION_META),
+                tarball_url="https://fallback/",
+                shasum="abc",
+                integrity="sha512-x==",
+                tarball_data=b"data",
+                pages_base_url=None,
+            )
+
+    def test_raises_when_tarball_data_with_blank_pages_base_url(
+        self,
+        publisher: PagesPublisher,
+        registry_dir: Path,
+    ) -> None:
+        """Blank pages_base_url with tarball_data raises; no silent bad URL."""
+        with pytest.raises(ValueError, match="pages_base_url is required"):
+            publisher.update_registry(
+                registry_dir=registry_dir,
+                unscoped_name="com.foo.bar",
+                version="1.0.0",
+                version_meta=dict(_VERSION_META),
+                tarball_url="https://fallback/",
+                shasum="abc",
+                integrity="sha512-x==",
+                tarball_data=b"data",
+                pages_base_url="   ",
+            )

@@ -693,3 +693,46 @@ class TestGithubPublishDirect:
                         )
 
         mock_pages.assert_called_once()
+
+
+class TestGetPagesBaseUrl:
+    """_get_pages_base_url normalises the env var and warns when absent."""
+
+    def test_returns_url_when_set(self) -> None:
+        from unity_wrapper.utils.package_publisher import _get_pages_base_url
+
+        with patch.dict(
+            os.environ, {"PAGES_BASE_URL": "https://owner.github.io/repo"}
+        ):
+            assert _get_pages_base_url() == "https://owner.github.io/repo"
+
+    def test_strips_whitespace(self) -> None:
+        from unity_wrapper.utils.package_publisher import _get_pages_base_url
+
+        with patch.dict(
+            os.environ,
+            {"PAGES_BASE_URL": "  https://owner.github.io/repo  "},
+        ):
+            assert _get_pages_base_url() == "https://owner.github.io/repo"
+
+    def test_returns_none_when_unset(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        from unity_wrapper.utils.package_publisher import _get_pages_base_url
+
+        env = {k: v for k, v in os.environ.items() if k != "PAGES_BASE_URL"}
+        with patch.dict(os.environ, env, clear=True):
+            with caplog.at_level(logging.WARNING):
+                result = _get_pages_base_url()
+        assert result is None
+        assert "PAGES_BASE_URL" in caplog.text
+
+    def test_returns_none_when_blank(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        from unity_wrapper.utils.package_publisher import _get_pages_base_url
+
+        with patch.dict(os.environ, {"PAGES_BASE_URL": "   "}):
+            with caplog.at_level(logging.WARNING):
+                result = _get_pages_base_url()
+        assert result is None

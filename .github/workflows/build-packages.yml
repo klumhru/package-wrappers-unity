@@ -169,13 +169,6 @@ jobs:
           echo "Publishing packages to GitHub Package Registry..."
           make publish REGISTRY=github OWNER=${{ github.repository_owner }}
 
-      - name: Save Pages registry cache
-        if: github.ref == 'refs/heads/main'
-        uses: actions/cache/save@v4
-        with:
-          path: dist/registry
-          key: pages-registry-${{ github.run_id }}
-
       - name: Check if static registry was generated
         id: check-registry
         if: github.ref == 'refs/heads/main'
@@ -186,6 +179,13 @@ jobs:
             echo "registry-exists=false" >> $GITHUB_OUTPUT
             echo "dist/registry/ not found or empty, skipping Pages deploy"
           fi
+
+      - name: Save Pages registry cache
+        if: steps.check-registry.outputs.registry-exists == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: dist/registry
+          key: pages-registry-${{ github.run_id }}
 
       - name: Configure GitHub Pages
         if: steps.check-registry.outputs.registry-exists == 'true'

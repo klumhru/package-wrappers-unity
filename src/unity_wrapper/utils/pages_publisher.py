@@ -114,11 +114,21 @@ class PagesPublisher:
 
         # Save tarball to Pages and use its public URL when possible so
         # UPM can download without authentication.
-        if tarball_data is not None and pages_base_url is not None:
+        pages_base_url_clean = (
+            pages_base_url.strip() if pages_base_url is not None else None
+        )
+        if tarball_data is not None:
+            if not pages_base_url_clean:
+                raise ValueError(
+                    "pages_base_url is required and must be a non-empty "
+                    "string when tarball_data is provided."
+                )
             tarball_filename = f"{unscoped_name}-{version}.tgz"
             tarball_path = registry_dir / tarball_filename
             tarball_path.write_bytes(tarball_data)
-            tarball_url = f"{pages_base_url.rstrip('/')}/{tarball_filename}"
+            tarball_url = (
+                f"{pages_base_url_clean.rstrip('/')}/{tarball_filename}"
+            )
             logger.info(f"Saved tarball to Pages registry: {tarball_path}")
 
         packument = self._load_or_create(

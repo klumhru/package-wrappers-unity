@@ -18,6 +18,24 @@ from unity_wrapper.utils.pages_publisher import PagesPublisher
 logger = logging.getLogger(__name__)
 
 
+def _get_pages_base_url() -> Optional[str]:
+    """Return a validated PAGES_BASE_URL from the environment.
+
+    Returns ``None`` (and logs a warning) when the variable is absent or
+    blank so callers can fall back to the constructed GitHub Packages URL
+    rather than generating an invalid tarball path.
+    """
+    raw = os.getenv("PAGES_BASE_URL", "")
+    url = raw.strip()
+    if not url:
+        logger.warning(
+            "PAGES_BASE_URL is not set; tarballs will use the GitHub "
+            "Packages URL which requires authentication."
+        )
+        return None
+    return url
+
+
 class _PublishConflict(Exception):
     """Raised when a package version already exists in the registry."""
 
@@ -394,7 +412,7 @@ class PackagePublisher:
             # the Pages packument stays current (e.g. on first run after
             # adding PagesPublisher, or after a manual re-publish).
             if registry_dir is not None:
-                pages_base_url = os.getenv("PAGES_BASE_URL")
+                pages_base_url = _get_pages_base_url()
                 PagesPublisher().update_registry(
                     registry_dir=registry_dir,
                     unscoped_name=original_name,
@@ -413,7 +431,7 @@ class PackagePublisher:
         logger.debug(f"GitHub publish HTTP status: {response.status_code}")
 
         if registry_dir is not None:
-            pages_base_url = os.getenv("PAGES_BASE_URL")
+            pages_base_url = _get_pages_base_url()
             PagesPublisher().update_registry(
                 registry_dir=registry_dir,
                 unscoped_name=original_name,
