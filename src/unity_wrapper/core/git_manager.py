@@ -52,6 +52,14 @@ class GitManager:
                     self._checkout_ref(repo, ref)
                 else:
                     logger.info(f"Repository {name} already at ref {ref}")
+                    # For branch refs, fast-forward to the latest remote
+                    # commit that was just fetched.  Tags and commit hashes
+                    # cannot be fast-forwarded, so failures are silenced.
+                    try:
+                        repo.git.reset("--hard", f"origin/{ref}")
+                        logger.debug(f"Fast-forwarded {name} to origin/{ref}")
+                    except GitCommandError:
+                        pass
 
                 self.repos[name] = repo
                 return repo_path
@@ -102,7 +110,7 @@ class GitManager:
                     errors[repo_name] = exc
 
         if errors:
-            failed = ", ".join(errors.keys())
+            failed = ", ".join(sorted(errors.keys()))
             raise RuntimeError(
                 f"Failed to fetch {len(errors)} repo(s): {failed}"
             )
@@ -184,8 +192,38 @@ class GitManager:
         for _, repo in self.repos.items():
             repo.close()
 
-        if self.work_dir != self.cache_dir and self.work_dir.exists():
-            shutil.rmtree(self.work_dir)
+        work_dir = self.work_dir.resolve()
+        cache_dir = self.cache_dir.resolve()
+
+        if not work_dir.exists():
+            logger.info(
+                "Temporary working directory does not exist; nothing to clean"
+            )
+            return
+
+        if work_dir == cache_dir:
+            logger.info(
+                "Temporary working directory is the git cache; nothing removed"
+            )
+            return
+
+        # Cache is nested inside work_dir: remove everything except the cache.
+        if cache_dir.is_relative_to(work_dir):
+            for entry in work_dir.iterdir():
+                if entry.resolve() == cache_dir:
+                    continue
+                if entry.is_dir():
+                    shutil.rmtree(entry)
+                else:
+                    entry.unlink()
+            logger.info(
+                "Cleaned up temporary working directory contents"
+                " (git cache preserved)"
+            )
+            return
+
+        # Cache is outside work_dir: safe to remove the whole directory.
+        shutil.rmtree(work_dir)
         logger.info(
             "Cleaned up temporary working directory (git cache preserved)"
         )

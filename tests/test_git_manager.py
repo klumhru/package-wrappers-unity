@@ -129,6 +129,27 @@ class TestCleanup:
         # The shared dir must NOT be removed (cache takes precedence)
         assert work_dir.exists()
 
+    def test_cleanup_cache_nested_inside_work_dir(
+        self, temp_dirs: tuple[Path, Path]
+    ) -> None:
+        """When cache nested in work_dir, only non-cache contents removed."""
+        work_dir, _ = temp_dirs
+        cache_dir = work_dir / ".git-cache"
+        cache_dir.mkdir(parents=True)
+        gm = GitManager(work_dir, cache_dir=cache_dir)
+
+        (work_dir / "tmp.txt").write_text("tmp")
+        (work_dir / "scratch").mkdir()
+        (cache_dir / "myrepo").mkdir()
+
+        gm.cleanup()
+
+        assert work_dir.exists()
+        assert cache_dir.exists()
+        assert (cache_dir / "myrepo").exists()
+        assert not (work_dir / "tmp.txt").exists()
+        assert not (work_dir / "scratch").exists()
+
 
 class TestPrefetchAll:
     """prefetch_all parallelises clone_or_update calls."""
@@ -168,14 +189,15 @@ class TestPrefetchAll:
             with patch(
                 "unity_wrapper.core.git_manager.ThreadPoolExecutor"
             ) as mock_tpe:
-                mock_tpe.return_value.__enter__ = lambda s: MagicMock(
-                    submit=lambda fn, *a, **kw: _immediate_future(fn(*a, **kw))
+                executor_mock = MagicMock()
+                executor_mock.submit.side_effect = (
+                    lambda fn, *a, **kw: _immediate_future(fn(*a, **kw))
                 )
+                mock_tpe.return_value.__enter__.return_value = executor_mock
                 mock_tpe.return_value.__exit__ = MagicMock(return_value=False)
-                try:
-                    gm.prefetch_all(repos, max_workers=7)
-                except Exception:
-                    pass
+
+                gm.prefetch_all(repos, max_workers=7)
+
                 mock_tpe.assert_called_once_with(max_workers=7)
 
     def test_errors_are_aggregated_not_aborted(
@@ -197,6 +219,21 @@ class TestPrefetchAll:
                 gm.prefetch_all(repos, max_workers=4)
 
         assert len(attempted) == 3
+
+    def test_error_message_lists_repos_in_sorted_order(
+        self, temp_dirs: tuple[Path, Path]
+    ) -> None:
+        """Failed repo names appear sorted in the RuntimeError message."""
+        work_dir, cache_dir = temp_dirs
+        gm = GitManager(work_dir, cache_dir=cache_dir)
+        repos = self._make_repos(3)
+
+        def side_effect(url: str, ref: str, name: str) -> None:
+            raise RuntimeError("bang")
+
+        with patch.object(gm, "clone_or_update", side_effect=side_effect):
+            with pytest.raises(RuntimeError, match="repo0, repo1, repo2"):
+                gm.prefetch_all(repos, max_workers=4)
 
     def test_empty_repo_list_is_a_noop(
         self, temp_dirs: tuple[Path, Path]

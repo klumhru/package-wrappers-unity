@@ -68,12 +68,15 @@ class PackageBuilder:
         source_config = package_config["source"]
         extract_path = package_config.get("extract_path", ".")
 
-        # Clone or update repository
-        repo_path = self.git_manager.clone_or_update(
-            url=source_config["url"],
-            ref=source_config["ref"],
-            name=package_name,
-        )
+        # Clone or update repository (skip if already prefetched)
+        if package_name in self.git_manager.repos:
+            repo_path = self.git_manager.cache_dir / package_name
+        else:
+            repo_path = self.git_manager.clone_or_update(
+                url=source_config["url"],
+                ref=source_config["ref"],
+                name=package_name,
+            )
 
         # Create package output directory
         package_output_dir = self.output_dir / package_name
@@ -264,7 +267,7 @@ class PackageBuilder:
         source_config = package_config["source"]
 
         # Check if repository exists and if ref has changed
-        repo_path = self.work_dir / package_name
+        repo_path = self.git_manager.cache_dir / package_name
         if repo_path.exists():
             current_info = self.git_manager.get_repo_info(package_name)
             if current_info and current_info["ref"] != source_config["ref"]:

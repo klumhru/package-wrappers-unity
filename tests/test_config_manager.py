@@ -140,3 +140,35 @@ def test_get_max_parallel_clones_custom(temp_config_dir: Path) -> None:
 
     config = ConfigManager(temp_config_dir)
     assert config.get_max_parallel_clones() == 8
+
+
+def test_get_max_parallel_clones_invalid_type(temp_config_dir: Path) -> None:
+    """get_max_parallel_clones raises ValueError for a non-integer value."""
+    settings_path = temp_config_dir / "settings.yaml"
+    with open(settings_path) as f:
+        import yaml
+
+        data = yaml.safe_load(f)
+    data.setdefault("build", {})["max_parallel_clones"] = "fast"
+    with open(settings_path, "w") as f:
+        yaml.dump(data, f)
+
+    config = ConfigManager(temp_config_dir)
+    with pytest.raises(ValueError, match="max_parallel_clones"):
+        config.get_max_parallel_clones()
+
+
+def test_get_max_parallel_clones_zero_raises(temp_config_dir: Path) -> None:
+    """get_max_parallel_clones raises ValueError when value is 0."""
+    settings_path = temp_config_dir / "settings.yaml"
+    with open(settings_path) as f:
+        import yaml
+
+        data = yaml.safe_load(f)
+    data.setdefault("build", {})["max_parallel_clones"] = 0
+    with open(settings_path, "w") as f:
+        yaml.dump(data, f)
+
+    config = ConfigManager(temp_config_dir)
+    with pytest.raises(ValueError, match="max_parallel_clones"):
+        config.get_max_parallel_clones()

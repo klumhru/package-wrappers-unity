@@ -143,7 +143,20 @@ class ConfigManager:
     def get_max_parallel_clones(self) -> int:
         """Get maximum number of parallel git clone/fetch workers."""
         build = self.get_build_settings()
-        return int(build.get("max_parallel_clones", 4))
+        raw = build.get("max_parallel_clones", 4)
+        try:
+            value = int(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Invalid value for build.max_parallel_clones: {raw!r}."
+                " Must be a positive integer."
+            ) from exc
+        if value <= 0:
+            raise ValueError(
+                f"Invalid value for build.max_parallel_clones: {value!r}."
+                " Must be a positive integer."
+            )
+        return value
 
     def get_github_settings(self) -> Dict[str, Any]:
         """Get GitHub publishing settings."""
