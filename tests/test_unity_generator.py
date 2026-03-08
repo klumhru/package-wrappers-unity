@@ -116,3 +116,43 @@ def test_organize_runtime_structure_preserves_existing_structure(
     assert (package_dir / "Runtime" / "MyScript.asmdef").exists()
     assert (package_dir / "Editor" / "EditorScript.cs").exists()
     assert (package_dir / "package.json").exists()
+
+
+class TestGeneratePackageJsonVersion:
+    """generate_package_json strips leading 'v' from version strings."""
+
+    def _make_gen(self, tmp_path: Path) -> UnityGenerator:
+        return UnityGenerator(tmp_path)
+
+    def test_v_prefix_is_stripped(self, tmp_path: Path) -> None:
+        gen = self._make_gen(tmp_path)
+        pkg = gen.generate_package_json(
+            name="com.foo.bar",
+            display_name="Foo",
+            version="v1.2.3",
+            description="",
+            author="Author",
+        )
+        assert pkg["version"] == "1.2.3"
+
+    def test_no_prefix_unchanged(self, tmp_path: Path) -> None:
+        gen = self._make_gen(tmp_path)
+        pkg = gen.generate_package_json(
+            name="com.foo.bar",
+            display_name="Foo",
+            version="1.2.3",
+            description="",
+            author="Author",
+        )
+        assert pkg["version"] == "1.2.3"
+
+    def test_only_leading_v_stripped(self, tmp_path: Path) -> None:
+        gen = self._make_gen(tmp_path)
+        pkg = gen.generate_package_json(
+            name="com.foo.bar",
+            display_name="Foo",
+            version="v31.1.0",
+            description="",
+            author="Author",
+        )
+        assert pkg["version"] == "31.1.0"

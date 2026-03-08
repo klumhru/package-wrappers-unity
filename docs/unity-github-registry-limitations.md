@@ -111,16 +111,21 @@ GitHub infers the scope from the `repository` field when the package name is not
 
 ## What the Unity Consumer Side Looks Like
 
-For reference, here is how a Unity project consumes these packages. You do not need to change this, but it helps to understand what the consumer expects.
+For reference, here is how a Unity project consumes these packages.
 
 ### `Packages/manifest.json`
+
+The registry `url` **must include the owner scope path** (`/@klumhru`), not just
+the bare `npm.pkg.github.com` domain. This is because GitHub Packages stores
+all packages under a scoped path and only responds to queries at that path;
+querying the bare domain for an unscoped package name returns 404.
 
 ```json
 {
   "scopedRegistries": [
     {
       "name": "GitHub - klumhru",
-      "url": "https://npm.pkg.github.com",
+      "url": "https://npm.pkg.github.com/@klumhru",
       "scopes": [
         "com.klumhru"
       ]
@@ -132,40 +137,54 @@ For reference, here is how a Unity project consumes these packages. You do not n
 }
 ```
 
+When UPM resolves `com.klumhru.wrapper.some-package`, it appends the package
+name to the registry `url`, producing:
+`https://npm.pkg.github.com/@klumhru/com.klumhru.wrapper.some-package` —
+which is the exact path where the package lives in GitHub Packages.
+
 ### `.upmconfig.toml` (in user home directory)
 
+The token auth entry **must match the registry `url` exactly** (including the
+`/@klumhru` path), otherwise authentication fails silently.
+
 ```toml
-[npmAuth."https://npm.pkg.github.com"]
+[npmAuth."https://npm.pkg.github.com/@klumhru"]
 token = "ghp_XXXXX"
 alwaysAuth = true
 ```
 
-**Critical detail:** The key in `npmAuth` must be an exact URL prefix match with the `url` in `manifest.json`. If these don't match, authentication fails silently and Unity reports invalid credentials.
-
 ---
 
-## Summary of Required Changes to the Publishing Pipeline
+## Summary of the Implemented Publishing Strategy
 
-1. **Remove the `@klumhru/` prefix from the `name` field** in every `package.json` that gets published. The name must be the bare UPM identifier (e.g. `com.klumhru.wrapper.some-package`).
+The pipeline uses **direct HTTP PUT** to GitHub Packages instead of the npm
+CLI, which allows full control over the request:
 
-2. **Add a `repository` field** to `package.json` pointing to the GitHub repository. GitHub uses this to determine ownership when the name is unscoped.
+1. **`npm pack`** creates the tarball. The `package.json` inside the tarball
+   keeps the **unscoped** UPM name (`com.klumhru.wrapper.some-package`), so
+   Unity can install and resolve it correctly after download.
 
-3. **Add a `publishConfig` block** to `package.json` with `"registry": "https://npm.pkg.github.com"`, or configure this via `.npmrc`.
+2. A **packument** document is constructed with:
+   - `name`: scoped name (`@klumhru/com.klumhru.wrapper.some-package`) — required by GitHub for routing
+   - `_attachments` key: `@klumhru/com.klumhru.wrapper.some-package-{version}.tgz` — GitHub requires the attachment key to be `{packument.name}-{version}.tgz`
 
-4. **Publish with the scope flag**: `npm publish --scope=@klumhru`, or rely on the `repository` field for GitHub to infer ownership.
+3. The packument is **PUT to** `https://npm.pkg.github.com/@klumhru/com.klumhru.wrapper.some-package`.
 
-5. **Ensure the authentication token** used for publishing has `write:packages` scope.
-
-6. **If packages are already published with the scoped name**, they may need to be deleted and republished with the unscoped name. GitHub does not support renaming published packages. Check if the old scoped versions need to be cleaned up.
+4. **Versions must use strict semver** (e.g. `31.1.0`, not `v31.1.0`). The
+   pipeline strips any leading `v` automatically.
 
 ---
 
 ## Verification
 
-After publishing, verify the package is correctly named by querying the registry:
+After publishing, verify the package is accessible:
 
 ```bash
-npm --registry https://npm.pkg.github.com view com.klumhru.wrapper.some-package
+# Requires a valid token with read:packages scope
+curl -H "Authorization: Bearer ghp_XXXXX" \
+  "https://npm.pkg.github.com/@klumhru/com.klumhru.wrapper.some-package"
 ```
 
-This should return the package metadata with the unscoped name. If it returns nothing or an error, the package was likely published with the scope in the name and needs to be republished.
+The response lists available versions. The `name` field in the response will
+be the scoped name; the tarball's internal `package.json` contains the unscoped
+UPM name.

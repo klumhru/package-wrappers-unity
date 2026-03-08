@@ -46,10 +46,13 @@ class UnityGenerator:
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Generate Unity package.json content."""
+        # UPM requires strict semver without a leading 'v' (e.g. '1.0.0',
+        # not 'v1.0.0'). Strip any leading 'v' from git tag–style versions.
+        normalized_version = version.lstrip("v")
         package_json: Dict[str, Any] = {
             "name": name,
             "displayName": display_name,
-            "version": version,
+            "version": normalized_version,
             "description": description,
             "author": self._parse_author(author),
             "unity": "2019.4",
