@@ -113,7 +113,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: 'https://npm.pkg.github.com'
 
       - name: Create settings file for CI
         if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
@@ -127,7 +127,7 @@ jobs:
           output_dir: "packages"
           work_dir: ".unity_wrapper_temp"
 
-          # GitHub Package Registry settings (legacy, not used for npmjs)
+          # GitHub Package Registry settings
           github:
             owner: "${{ github.repository_owner }}"
             repository: "${{ github.event.repository.name }}"
@@ -148,13 +148,13 @@ jobs:
             fix_global_namespaces: true
           EOF
 
-      - name: Publish packages to npmjs.org
+      - name: Publish packages to GitHub Package Registry
         if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Publishing packages to npmjs.org..."
-          make publish REGISTRY=npmjs OWNER=klumhru
+          echo "Publishing packages to GitHub Package Registry..."
+          make publish REGISTRY=github OWNER=${{ github.repository_owner }}
 
   test:
     runs-on: ubuntu-latest
