@@ -114,6 +114,12 @@ packages:
     asmdef_name: "UniTask"
     namespace: "Cysharp.Threading.Tasks"
     keywords: ["async", "await", "unity"]
+    # Exclude the External/ subtree: it contains optional TMP, DOTween, and
+    # Addressables extensions that require 3rd-party assemblies not guaranteed
+    # to be present in the consumer project.  Each sub-folder ships its own
+    # .asmdef so there is no risk of stripping required symbols.
+    exclude_paths:
+      - "External"
     # versionDefines are present in the upstream asmdef; they are preserved
     # automatically when the source ships its own UniTask.asmdef.  These
     # extras serve as a fallback if the source asmdef is absent.

@@ -92,8 +92,9 @@ class PackageBuilder:
             )
 
         # Organize into Unity package structure
+        exclude_paths: List[str] = package_config.get("exclude_paths", [])
         runtime_dir = self.unity_generator.organize_runtime_structure(
-            source_dir, package_output_dir
+            source_dir, package_output_dir, exclude_paths=exclude_paths
         )
 
         # Generate package.json
