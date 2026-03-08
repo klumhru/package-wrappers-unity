@@ -210,8 +210,7 @@ class TestPublishPackage:
         with (
             patch.object(pub, "_copy_package"),
             patch.object(pub, "_update_package_json"),
-            patch.object(pub, "_configure_npm"),
-            patch.object(pub, "_npm_publish"),
+            patch.object(pub, "_github_publish_direct"),
         ):
             with caplog.at_level(logging.INFO):
                 pub.publish_package(pkg_dir)
@@ -229,15 +228,18 @@ class TestPublishPackage:
         (pkg_dir / "package.json").write_text(self._PKG_JSON)
 
         pub = self._publisher_with_repo()
-        conflict = subprocess.CalledProcessError(
-            1, "npm", stderr="npm ERR! code E409"
-        )
+
+        # GitHub path raises _PublishConflict from _github_publish_direct
+        from unity_wrapper.utils.package_publisher import _PublishConflict
 
         with (
             patch.object(pub, "_copy_package"),
             patch.object(pub, "_update_package_json"),
-            patch.object(pub, "_configure_npm"),
-            patch.object(pub, "_npm_publish", side_effect=conflict),
+            patch.object(
+                pub,
+                "_github_publish_direct",
+                side_effect=_PublishConflict("pkg"),
+            ),
         ):
             with caplog.at_level(logging.WARNING):
                 pub.publish_package(pkg_dir)  # must not raise
@@ -258,15 +260,16 @@ class TestPublishPackage:
         (pkg_dir / "package.json").write_text(self._PKG_JSON)
 
         pub = self._publisher_with_repo()
-        conflict = subprocess.CalledProcessError(
-            1, "npm", stderr="E409 conflict"
-        )
+        from unity_wrapper.utils.package_publisher import _PublishConflict
 
         with (
             patch.object(pub, "_copy_package"),
             patch.object(pub, "_update_package_json"),
-            patch.object(pub, "_configure_npm"),
-            patch.object(pub, "_npm_publish", side_effect=conflict),
+            patch.object(
+                pub,
+                "_github_publish_direct",
+                side_effect=_PublishConflict("pkg"),
+            ),
         ):
             pub.publish_package(pkg_dir)  # should not raise
 
@@ -276,17 +279,18 @@ class TestPublishPackage:
         (pkg_dir / "package.json").write_text(self._PKG_JSON)
 
         pub = self._publisher_with_repo()
-        auth_err = subprocess.CalledProcessError(
-            1, "npm", stderr="ENEEDAUTH need auth"
-        )
+        import requests as req
 
         with (
             patch.object(pub, "_copy_package"),
             patch.object(pub, "_update_package_json"),
-            patch.object(pub, "_configure_npm"),
-            patch.object(pub, "_npm_publish", side_effect=auth_err),
+            patch.object(
+                pub,
+                "_github_publish_direct",
+                side_effect=req.HTTPError(response=MagicMock(status_code=401)),
+            ),
         ):
-            with pytest.raises(subprocess.CalledProcessError):
+            with pytest.raises(req.HTTPError):
                 pub.publish_package(pkg_dir)
 
     def test_missing_package_json_raises(self, tmp_path: Path) -> None:
@@ -317,14 +321,6 @@ class TestUpdatePackageJson:
         pkg = self._read_pkg(tmp_path)
         assert pkg["name"] == "com.foo.bar"
 
-    def test_github_adds_publish_config(self, tmp_path: Path) -> None:
-        self._write_pkg(tmp_path)
-        pub = _make_publisher(registry="github", owner="myorg")
-        pub._update_package_json(tmp_path / "package.json")
-        pkg = self._read_pkg(tmp_path)
-        assert "publishConfig" in pkg
-        assert "npm.pkg.github.com" in pkg["publishConfig"]["registry"]
-
     def test_github_adds_repository_field(self, tmp_path: Path) -> None:
         self._write_pkg(tmp_path)
         pub = _make_publisher(registry="github", owner="myorg")
@@ -332,6 +328,14 @@ class TestUpdatePackageJson:
         pkg = self._read_pkg(tmp_path)
         assert pkg["repository"]["type"] == "git"
         assert "myorg" in pkg["repository"]["url"]
+
+    def test_github_no_publish_config(self, tmp_path: Path) -> None:
+        """publishConfig is not needed: we PUT directly with the scoped URL."""
+        self._write_pkg(tmp_path)
+        pub = _make_publisher(registry="github", owner="myorg")
+        pub._update_package_json(tmp_path / "package.json")
+        pkg = self._read_pkg(tmp_path)
+        assert "publishConfig" not in pkg
 
     def test_npmjs_scopes_name(self, tmp_path: Path) -> None:
         """npmjs registry MUST scope the name."""
@@ -350,15 +354,16 @@ class TestUpdatePackageJson:
 
 
 class TestPublishPackageUpmNames:
-    """Verify publish_package logs the unscoped name for GitHub."""
+    """Verify publish_package logs the scoped name for all registries."""
 
     _PKG_JSON = json.dumps({"name": "com.foo.bar", "version": "1.0.0"})
 
-    def test_github_logs_unscoped_name(
+    def test_github_logs_scoped_name(
         self,
         caplog: pytest.LogCaptureFixture,
         tmp_path: Path,
     ) -> None:
+        """GitHub uses direct HTTP publish; name is scoped in the registry."""
         pkg_dir = tmp_path / "pkg"
         pkg_dir.mkdir()
         (pkg_dir / "package.json").write_text(self._PKG_JSON)
@@ -369,14 +374,12 @@ class TestPublishPackageUpmNames:
         with (
             patch.object(pub, "_copy_package"),
             patch.object(pub, "_update_package_json"),
-            patch.object(pub, "_configure_npm"),
-            patch.object(pub, "_npm_publish"),
+            patch.object(pub, "_github_publish_direct"),
         ):
             with caplog.at_level(logging.INFO):
                 pub.publish_package(pkg_dir)
 
-        assert "com.foo.bar@1.0.0" in caplog.text
-        assert "@testowner/com.foo.bar" not in caplog.text
+        assert "@testowner/com.foo.bar@1.0.0" in caplog.text
 
     def test_npmjs_logs_scoped_name(
         self,
@@ -402,9 +405,10 @@ class TestPublishPackageUpmNames:
 
 
 class TestCheckPackageExistsUpmNames:
-    """check_package_exists queries GitHub with the unscoped name."""
+    """check_package_exists always uses the scoped name."""
 
-    def test_github_uses_unscoped_name(self) -> None:
+    def test_github_uses_scoped_name(self) -> None:
+        """GitHub packages are stored under @owner/name in the registry."""
         pub = _make_publisher(registry="github", owner="myorg")
 
         with patch("subprocess.run") as mock_run:
@@ -412,8 +416,7 @@ class TestCheckPackageExistsUpmNames:
             pub.check_package_exists("com.foo.bar", "1.0.0")
             call_args = " ".join(mock_run.call_args[0][0])
 
-        assert "com.foo.bar" in call_args
-        assert "@myorg/com.foo.bar" not in call_args
+        assert "@myorg/com.foo.bar" in call_args
 
     def test_npmjs_uses_scoped_name(self) -> None:
         pub = _make_publisher(registry="npmjs", owner="myorg")
@@ -427,27 +430,7 @@ class TestCheckPackageExistsUpmNames:
 
 
 class TestNpmPublishScope:
-    """_npm_publish passes --scope=@owner for GitHub, not for others."""
-
-    def test_github_with_owner_passes_scope_flag(self) -> None:
-        pub = _make_publisher(registry="github", owner="myorg")
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="", stderr=""
-            )
-            pub._npm_publish(Path("/tmp/pkg"))
-            cmd = mock_run.call_args[0][0]
-        assert "--scope=@myorg" in cmd
-
-    def test_github_without_owner_omits_scope_flag(self) -> None:
-        pub = _make_publisher(registry="github", owner="")
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="", stderr=""
-            )
-            pub._npm_publish(Path("/tmp/pkg"))
-            cmd = mock_run.call_args[0][0]
-        assert not any(a.startswith("--scope") for a in cmd)
+    """_npm_publish does not pass --scope (GitHub uses direct HTTP now)."""
 
     def test_npmjs_omits_scope_flag(self) -> None:
         pub = _make_publisher(registry="npmjs", owner="myorg")
@@ -458,3 +441,83 @@ class TestNpmPublishScope:
             pub._npm_publish(Path("/tmp/pkg"))
             cmd = mock_run.call_args[0][0]
         assert not any(a.startswith("--scope") for a in cmd)
+
+    def test_npmjs_uses_npm_publish_command(self) -> None:
+        pub = _make_publisher(registry="npmjs", owner="myorg")
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout="", stderr=""
+            )
+            pub._npm_publish(Path("/tmp/pkg"))
+            cmd = mock_run.call_args[0][0]
+        assert cmd[:2] == ["npm", "publish"]
+
+
+class TestGithubPublishDirect:
+    """_github_publish_direct sends a scoped PUT to GitHub Packages."""
+
+    _PKG_JSON = json.dumps({"name": "com.foo.bar", "version": "1.0.0"})
+
+    def _setup_pkg(self, path: Path) -> None:
+        (path / "package.json").write_text(self._PKG_JSON)
+
+    @patch("unity_wrapper.utils.package_publisher.http_requests.put")
+    def test_puts_to_scoped_url(
+        self, mock_put: MagicMock, tmp_path: Path
+    ) -> None:
+        self._setup_pkg(tmp_path)
+        pub = _make_publisher(registry="github", owner="myorg")
+        mock_put.return_value = MagicMock(status_code=200)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="com.foo.bar-1.0.0.tgz\n",
+                stderr="",
+            )
+            with patch("pathlib.Path.read_bytes", return_value=b"x"):
+                pub._github_publish_direct(tmp_path)
+
+        called_url = mock_put.call_args[0][0]
+        assert called_url == ("https://npm.pkg.github.com/@myorg/com.foo.bar")
+
+    @patch("unity_wrapper.utils.package_publisher.http_requests.put")
+    def test_packument_body_has_scoped_name(
+        self, mock_put: MagicMock, tmp_path: Path
+    ) -> None:
+        self._setup_pkg(tmp_path)
+        pub = _make_publisher(registry="github", owner="myorg")
+        mock_put.return_value = MagicMock(status_code=200)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="com.foo.bar-1.0.0.tgz\n",
+                stderr="",
+            )
+            with patch("pathlib.Path.read_bytes", return_value=b"x"):
+                pub._github_publish_direct(tmp_path)
+
+        body = mock_put.call_args[1]["json"]
+        assert body["name"] == "@myorg/com.foo.bar"
+        assert body["versions"]["1.0.0"]["name"] == "@myorg/com.foo.bar"
+
+    @patch("unity_wrapper.utils.package_publisher.http_requests.put")
+    def test_conflict_raises_publish_conflict(
+        self, mock_put: MagicMock, tmp_path: Path
+    ) -> None:
+        from unity_wrapper.utils.package_publisher import _PublishConflict
+
+        self._setup_pkg(tmp_path)
+        pub = _make_publisher(registry="github", owner="myorg")
+        mock_put.return_value = MagicMock(status_code=409)
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="com.foo.bar-1.0.0.tgz\n",
+                stderr="",
+            )
+            with patch("pathlib.Path.read_bytes", return_value=b"x"):
+                with pytest.raises(_PublishConflict):
+                    pub._github_publish_direct(tmp_path)

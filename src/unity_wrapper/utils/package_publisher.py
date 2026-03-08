@@ -1,5 +1,7 @@
 """Package publisher for multiple registries."""
 
+import base64
+import hashlib
 import json
 import logging
 import os
@@ -9,7 +11,13 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import requests as http_requests
+
 logger = logging.getLogger(__name__)
+
+
+class _PublishConflict(Exception):
+    """Raised when a package version already exists in the registry."""
 
 
 class PackagePublisher:
@@ -175,14 +183,7 @@ class PackagePublisher:
 
         original_name = package_json["name"]
         version = package_json["version"]
-        # For GitHub, publish under the unscoped UPM name so Unity
-        # Package Manager can resolve it.  Scope is inferred by GitHub
-        # from the repository field and publishConfig.registry.
-        display_name = (
-            original_name
-            if self.registry == "github"
-            else self._compute_scoped_name(original_name)
-        )
+        display_name = self._compute_scoped_name(original_name)
         browse_url = self._package_browse_url(
             display_name, original_name, version
         )
@@ -195,16 +196,23 @@ class PackagePublisher:
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
-
                 package_copy = temp_path / "package"
                 self._copy_package(package_dir, package_copy)
                 self._update_package_json(package_copy / "package.json")
-                self._configure_npm(temp_path)
-                self._npm_publish(package_copy)
+                if self.registry == "github":
+                    self._github_publish_direct(package_copy)
+                else:
+                    self._configure_npm(temp_path)
+                    self._npm_publish(package_copy)
 
             logger.info(
                 f"Successfully published {display_name}@{version}. "
                 f"View at: {browse_url}"
+            )
+        except _PublishConflict:
+            logger.warning(
+                f"{display_name}@{version} already published "
+                f"(version conflict). View at: {browse_url}"
             )
         except subprocess.CalledProcessError as e:
             if self._is_publish_conflict(e):
@@ -227,15 +235,15 @@ class PackagePublisher:
 
         For GitHub, the ``name`` field is kept unscoped (e.g.
         ``com.foo.bar``) so that Unity Package Manager can resolve it.
-        GitHub infers ownership from the ``repository`` field and
-        ``publishConfig.registry``. For npmjs the name is scoped
+        The scope is applied at publish time via the direct HTTP PUT
+        URL, not via the ``name`` field.  For npmjs the name is scoped
         (e.g. ``@owner/com.foo.bar``).
         """
         with open(package_json_path, "r", encoding="utf-8") as f:
             package_json = json.load(f)
 
         original_name = package_json["name"]
-        # GitHub: keep unscoped name for UPM compatibility.
+        # GitHub: keep unscoped name in the tarball for UPM compatibility.
         # npmjs: scope the name so consumers can install it.
         if self.registry != "github":
             package_json["name"] = self._compute_scoped_name(original_name)
@@ -248,9 +256,6 @@ class PackagePublisher:
                     f"{original_name}.package-wrappers-unity.git"
                 ),
             }
-
-        if self.registry == "github":
-            package_json["publishConfig"] = {"registry": self.config["url"]}
 
         with open(package_json_path, "w", encoding="utf-8") as f:
             json.dump(package_json, f, indent=2, ensure_ascii=False)
@@ -270,14 +275,92 @@ class PackagePublisher:
                     f.write(f"//registry.npmjs.org/:_authToken={self.token}\n")
             # OpenUPM submission is manual, not via npm publish
 
-    def _npm_publish(self, package_dir: Path) -> None:
-        """Publish package using npm.
+    def _github_publish_direct(self, package_dir: Path) -> None:
+        """Publish to GitHub Packages using the npm registry HTTP API.
 
-        For GitHub, ``--scope=@{owner}`` is passed so the registry can
-        route the package to the correct owner without requiring the
-        scope to be embedded in the ``name`` field of ``package.json``.
-        This keeps the UPM-compatible unscoped name intact.
+        Bypasses the npm CLI so we can PUT directly to the scoped URL
+        (``/@owner/com.foo.bar``) that GitHub requires for routing, while
+        keeping the ``name`` field inside the tarball unscoped
+        (``com.foo.bar``) so Unity Package Manager can resolve it.
+
+        Raises:
+            _PublishConflict: If the version already exists (HTTP 409).
+            requests.HTTPError: For other HTTP errors.
         """
+        with open(package_dir / "package.json", encoding="utf-8") as f:
+            pkg_data: Dict[str, Any] = json.load(f)
+
+        original_name = pkg_data["name"]  # unscoped: com.foo.bar
+        version = pkg_data["version"]
+        scoped_name = self._compute_scoped_name(original_name)
+
+        # Create tarball with npm pack.  The package.json inside the
+        # tarball keeps the unscoped name for UPM.
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                ["npm", "pack", "--pack-destination", tmp],
+                cwd=package_dir,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            tarball_filename = result.stdout.strip().split("\n")[-1]
+            tarball_data = (Path(tmp) / tarball_filename).read_bytes()
+
+        shasum = hashlib.sha1(tarball_data).hexdigest()  # nosec B324
+        integrity = (
+            "sha512-"
+            + base64.b64encode(hashlib.sha512(tarball_data).digest()).decode()
+        )
+
+        # Registry metadata uses the scoped name for GitHub routing.
+        # The tarball attachment contains the files with unscoped name.
+        version_meta: Dict[str, Any] = {
+            **pkg_data,
+            "name": scoped_name,
+            "_id": f"{scoped_name}@{version}",
+            "dist": {
+                "integrity": integrity,
+                "shasum": shasum,
+                "tarball": (
+                    f"{self.config['url']}/{scoped_name}/-/"
+                    f"{original_name}-{version}.tgz"
+                ),
+            },
+        }
+
+        packument = {
+            "_id": scoped_name,
+            "name": scoped_name,
+            "dist-tags": {"latest": version},
+            "versions": {version: version_meta},
+            "_attachments": {
+                f"{original_name}-{version}.tgz": {
+                    "content_type": "application/octet-stream",
+                    "data": base64.b64encode(tarball_data).decode(),
+                    "length": len(tarball_data),
+                }
+            },
+        }
+
+        url = f"{self.config['url']}/{scoped_name}"
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+            "Accept": "application/vnd.npm.install-v1+json",
+        }
+        response = http_requests.put(
+            url, json=packument, headers=headers, timeout=120
+        )
+
+        if response.status_code == 409:
+            raise _PublishConflict(scoped_name)
+
+        response.raise_for_status()
+        logger.debug(f"GitHub publish HTTP status: {response.status_code}")
+
+    def _npm_publish(self, package_dir: Path) -> None:
+        """Publish package using npm (non-GitHub registries)."""
         if self.registry == "openupm":
             logger.warning(
                 "OpenUPM packages must be submitted manually at "
@@ -285,12 +368,8 @@ class PackagePublisher:
             )
             return
 
-        cmd = ["npm", "publish"]
-        if self.registry == "github" and self.owner:
-            cmd += [f"--scope=@{self.owner}"]
-
         result = subprocess.run(
-            cmd,
+            ["npm", "publish"],
             cwd=package_dir,
             check=True,
             capture_output=True,
@@ -304,12 +383,7 @@ class PackagePublisher:
             logger.info("OpenUPM package existence check not implemented")
             return False
 
-        # GitHub stores packages under their unscoped UPM name.
-        scoped_name = (
-            package_name
-            if self.registry == "github"
-            else self._compute_scoped_name(package_name)
-        )
+        scoped_name = self._compute_scoped_name(package_name)
 
         try:
             subprocess.run(
