@@ -162,9 +162,11 @@ poetry run unity-wrapper add                    # Add new package configuration
 poetry run unity-wrapper remove PACKAGE_NAME    # Remove package configuration
 
 # Automation
-unity-wrapper watch                  # Watch for config changes
-unity-wrapper publish               # Publish to npmjs.org (default)
-unity-wrapper publish --registry github  # Publish to GitHub Package Registry
+make watch                           # Watch for config changes
+make publish                         # Publish to npmjs.org (default)
+# Or via Poetry:
+poetry run unity-wrapper watch
+poetry run unity-wrapper publish --registry github
 
 # Development (via Makefile)
 make dev-setup                      # Complete development setup

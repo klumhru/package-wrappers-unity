@@ -25,11 +25,11 @@ packages:
   - name: "com.klumhru.wrapper.yetanotherhttphandler"
     display_name: "YetAnotherHttpHandler for Unity"
     description: "YetAnotherHttpHandler is a lightweight HTTP handler for Unity, providing an easy way to make HTTP requests."
-    version: "1.11.2"
+    version: "1.11.3"
     source:
       type: git
       url: "https://github.com/Cysharp/YetAnotherHttpHandler.git"
-      ref: "1.11.2"
+      ref: "1.11.3"
     extract_path: "src/YetAnotherHttpHandler"
     asmdef_name: "YetAnotherHttpHandler.Unity"
     asmdef_extra:
@@ -51,9 +51,8 @@ packages:
       ref: "1.8.1"
     extract_path: "src/MessagePipe.Unity/Assets/Plugins/MessagePipe"
     asmdef_name: "MessagePipe"
-    asmdef_extra:
-      references:
-        - "UniTask"
+    assembly_references:
+      - "UniTask"
     namespace: "MessagePipe"
     keywords: ["messaging", "unity"]
     package_json_extra:
@@ -71,10 +70,9 @@ packages:
       ref: "1.8.1"
     extract_path: "src/MessagePipe.Unity/Assets/Plugins/MessagePipe.VContainer"
     asmdef_name: "MessagePipe.VContainer"
-    asmdef_extra:
-      references:
-        - "MessagePipe"
-        - "VContainer"
+    assembly_references:
+      - "MessagePipe"
+      - "VContainer"
     namespace: "MessagePipe.VContainer"
     keywords: ["messaging", "vcontainer", "unity"]
     package_json_extra:
@@ -277,6 +275,18 @@ nuget_packages:
       license: "Apache-2.0"
       homepage: "https://github.com/grpc/grpc-csharp"
 
+  # Grpc.Auth
+  - name: "com.klumhru.wrapper.grpc-auth"
+    display_name: "gRPC Auth for Unity"
+    description: "gRPC Auth library for Unity, providing authentication support for gRPC."
+    version: "2.71.0"
+    nuget_id: "Grpc.Auth"
+    framework: "netstandard2.0"
+    keywords: ["grpc", "auth", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/grpc/grpc-csharp"
+
   # Microsoft.Extensions.Logging.Abstractions
   - name: "com.klumhru.wrapper.microsoft-extensions-logging-abstractions"
     display_name: "Microsoft.Extensions.Logging.Abstractions for Unity"
@@ -297,6 +307,18 @@ nuget_packages:
     nuget_id: "System.Memory"
     framework: "netstandard2.1"
     keywords: ["memory", "management", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
+
+  # System.Linq.Async
+  - name: "com.klumhru.wrapper.system-linq-async"
+    display_name: "System.Linq.Async for Unity"
+    description: "Provides asynchronous LINQ operators for Unity."
+    version: "6.0.3"
+    nuget_id: "System.Linq.Async"
+    framework: "netstandard2.0"
+    keywords: ["linq", "async", "unity"]
     package_json_extra:
       license: "MIT"
       homepage: "https://github.com/dotnet/runtime"
@@ -350,16 +372,28 @@ nuget_packages:
       homepage: "https://github.com/dotnet/runtime"
 
   # Microsoft.Extensions.DependencyInjection.Abstractions
-  # - name: "com.klumhru.wrapper.microsoft-extensions-dependency-injection-abstractions"
-  #   display_name: "Microsoft.Extensions.DependencyInjection.Abstractions for Unity"
-  #   description: "Abstractions for dependency injection in .NET applications, compatible with Unity."
-  #   version: "9.0.7"
-  #   nuget_id: "Microsoft.Extensions.DependencyInjection.Abstractions"
-  #   framework: "netstandard2.0"
-  #   keywords: ["dependency injection", "abstractions", "unity"]
-  #   package_json_extra:
-  #     license: "MIT"
-  #     homepage: "https://github.com/dotnet/runtime"
+  - name: "com.klumhru.wrapper.microsoft-extensions-dependency-injection-abstractions"
+    display_name: "Microsoft.Extensions.DependencyInjection.Abstractions for Unity"
+    description: "Abstractions for dependency injection in .NET applications, compatible with Unity."
+    version: "9.0.7"
+    nuget_id: "Microsoft.Extensions.DependencyInjection.Abstractions"
+    framework: "netstandard2.0"
+    keywords: ["dependency injection", "abstractions", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
+
+  # Microsoft.Bcl.AsyncInterfaces
+  - name: "com.klumhru.wrapper.microsoft-bcl-asyncinterfaces"
+    display_name: "Microsoft.Bcl.AsyncInterfaces for Unity"
+    description: "Provides support for async interfaces in Unity."
+    version: "9.0.7"
+    nuget_id: "Microsoft.Bcl.AsyncInterfaces"
+    framework: "netstandard2.0"
+    keywords: ["async", "interfaces", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
 
   # System.Diagnostics.DiagnosticSource
   - name: "com.klumhru.wrapper.system-diagnostics-diagnostic-source"
@@ -373,13 +407,110 @@ nuget_packages:
       license: "MIT"
       homepage: "https://github.com/dotnet/runtime"
 
-  # # - name: "com.klumhru.wrapper.newtonsoft-json"
-  # #   display_name: "Newtonsoft.Json for Unity"
-  # #   description: "Popular high-performance JSON framework for .NET"
-  # #   version: "1.0.0"
-  # #   nuget_id: "Newtonsoft.Json"
-  # #   framework: "netstandard2.0"
-  # #   keywords: ["json", "serialization", "parsing"]
-  # #   package_json_extra:
-  # #     license: "MIT"
-  # #     homepage: "https://www.newtonsoft.com/json"
+  # System.Threading.Tasks.Extensions
+  - name: "com.klumhru.wrapper.system-threading-tasks-extensions"
+    display_name: "System.Threading.Tasks.Extensions for Unity"
+    description: "Provides types for task-based asynchronous programming in Unity."
+    version: "4.6.3"
+    nuget_id: "System.Threading.Tasks.Extensions"
+    framework: "netstandard2.0"
+    keywords: ["threading", "tasks", "async", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"
+
+  # Google.Cloud.Firestore
+  - name: "com.klumhru.wrapper.google-cloud-firestore"
+    display_name: "Google.Cloud.Firestore for Unity"
+    description: "Google Cloud Firestore client library for Unity."
+    version: "3.10.0"
+    nuget_id: "Google.Cloud.Firestore"
+    framework: "netstandard2.0"
+    keywords: ["google", "cloud", "firestore", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/googleapis/google-cloud-dotnet"
+
+  # Google.Cloud.Firestore.V1
+  - name: "com.klumhru.wrapper.google-cloud-firestore-v1"
+    display_name: "Google.Cloud.Firestore.V1 for Unity"
+    description: "Google Cloud Firestore V1 client library for Unity."
+    version: "3.10.0"
+    nuget_id: "Google.Cloud.Firestore.V1"
+    framework: "netstandard2.0"
+    keywords: ["google", "cloud", "firestore", "v1", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/googleapis/google-cloud-dotnet"
+
+  # Google.Api.Gax.Grpc
+  - name: "com.klumhru.wrapper.google-api-gax-grpc"
+    display_name: "Google.Api.Gax.Grpc for Unity"
+    description: "Google API GAX gRPC library for Unity."
+    version: "4.11.1"
+    nuget_id: "Google.Api.Gax.Grpc"
+    framework: "netstandard2.0"
+    keywords: ["google", "api", "gax", "grpc", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/googleapis/google-cloud-dotnet"
+
+  # Google.Api.CommonProtos
+  - name: "com.klumhru.wrapper.google-api-commonprotos"
+    display_name: "Google.Api.CommonProtos for Unity"
+    description: "Google API Common Protos library for Unity."
+    version: "2.17.0"
+    nuget_id: "Google.Api.CommonProtos"
+    framework: "netstandard2.0"
+    keywords: ["google", "api", "common", "protos", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/googleapis/google-cloud-dotnet"
+
+  # Google.Api.Gax
+  - name: "com.klumhru.wrapper.google-api-gax"
+    display_name: "Google.Api.Gax for Unity"
+    description: "Google API GAX library for Unity."
+    version: "4.11.1"
+    nuget_id: "Google.Api.Gax"
+    framework: "netstandard2.0"
+    keywords: ["google", "api", "gax", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/googleapis/google-cloud-dotnet"
+
+  # Google.Cloud.Location
+  - name: "com.klumhru.wrapper.google-cloud-location"
+    display_name: "Google.Cloud.Location for Unity"
+    description: "Google Cloud Location library for Unity."
+    version: "2.3.0"
+    nuget_id: "Google.Cloud.Location"
+    framework: "netstandard2.0"
+    keywords: ["google", "cloud", "location", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/googleapis/google-cloud-dotnet"
+
+  # Google.LongRunning
+  - name: "com.klumhru.wrapper.google-longrunning"
+    display_name: "Google.LongRunning for Unity"
+    description: "Google Long Running Operations library for Unity."
+    version: "3.3.0"
+    nuget_id: "Google.LongRunning"
+    framework: "netstandard2.0"
+    keywords: ["google", "longrunning", "operations", "unity"]
+    package_json_extra:
+      license: "Apache-2.0"
+      homepage: "https://github.com/googleapis/google-cloud-dotnet"
+
+  # System.Collections.Immutable
+  - name: "com.klumhru.wrapper.system-collections-immutable"
+    display_name: "System.Collections.Immutable for Unity"
+    description: "Immutable collections for .NET."
+    version: "9.0.7"
+    nuget_id: "System.Collections.Immutable"
+    framework: "netstandard2.0"
+    keywords: ["collections", "immutable", "unity"]
+    package_json_extra:
+      license: "MIT"
+      homepage: "https://github.com/dotnet/runtime"

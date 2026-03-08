@@ -32,18 +32,25 @@ make setup
 make install-hooks
 ```
 
+If setting up manually:
+
+```bash
+poetry install --with dev
+poetry run pre-commit install
+```
+
 ## Manual Usage
 
 To run hooks manually on all files:
 ```bash
 make run-hooks
 # or
-pre-commit run --all-files
+poetry run pre-commit run --all-files
 ```
 
 To run hooks on specific files:
 ```bash
-pre-commit run --files src/unity_wrapper/cli.py
+poetry run pre-commit run --files src/unity_wrapper/cli.py
 ```
 
 ## How It Works
@@ -84,23 +91,23 @@ The pre-commit configuration is in `.pre-commit-config.yaml`. Key features:
 ### Hook Installation Issues
 ```bash
 # Reinstall hooks
-pre-commit uninstall
+poetry run pre-commit uninstall
 make install-hooks
 ```
 
 ### Update Hook Versions
 ```bash
 # Update to latest versions
-pre-commit autoupdate
+poetry run pre-commit autoupdate
 
 # Reinstall with new versions
-pre-commit install --install-hooks
+poetry run pre-commit install --install-hooks
 ```
 
 ### Cache Issues
 ```bash
 # Clear pre-commit cache
-pre-commit clean
+poetry run pre-commit clean
 ```
 
 ## Development Workflow

@@ -54,8 +54,8 @@ watch: ## Watch for configuration changes and auto-rebuild
 check: ## Check which packages need updates
 	$(POETRY) run unity-wrapper check
 
-publish: ## Publish packages to GitHub Package Registry
-	$(POETRY) run unity-wrapper publish
+publish: ## Publish packages (env: REGISTRY= npmjs|github, OWNER=<scope/org>)
+	$(POETRY) run unity-wrapper publish $(if $(REGISTRY),--registry $(REGISTRY),) $(if $(OWNER),--owner $(OWNER),)
 
 list: ## List configured packages
 	$(POETRY) run unity-wrapper list-packages
