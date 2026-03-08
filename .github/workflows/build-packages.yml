@@ -46,6 +46,8 @@ jobs:
     permissions:
       contents: read
       packages: write  # Required for publishing to GitHub Package Registry
+      pages: write     # Required for deploying to GitHub Pages
+      id-token: write  # Required for OIDC GitHub Pages deployment
     if: needs.check-changes.outputs.packages-changed == 'true' || needs.check-changes.outputs.config-changed == 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
 
     steps:
@@ -155,6 +157,20 @@ jobs:
         run: |
           echo "Publishing packages to GitHub Package Registry..."
           make publish REGISTRY=github OWNER=${{ github.repository_owner }}
+
+      - name: Configure GitHub Pages
+        if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v4
+
+      - name: Upload static registry to GitHub Pages
+        if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/registry/
+
+      - name: Deploy static registry to GitHub Pages
+        if: (steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != '') && github.ref == 'refs/heads/main'
+        uses: actions/deploy-pages@v4
 
   test:
     runs-on: ubuntu-latest
