@@ -4,12 +4,11 @@ import click
 import logging
 import sys
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any
 
 from .core.package_builder import PackageBuilder
 from .core.config_manager import ConfigManager
 from .utils.file_watcher import FileWatcher
-from .utils.github_publisher import GitHubPublisher
 from .utils.package_publisher import create_publisher, PackagePublisher
 
 
@@ -173,51 +172,30 @@ def publish(
         # Determine owner
         final_owner = owner or github_settings.get("owner")
 
-        # Create appropriate publisher
-        publisher: Union[GitHubPublisher, PackagePublisher]
-        if registry == "github":
-            # Use provided token, or token from settings (if not empty),
-            # or None to let publisher use environment
-            settings_token = github_settings.get("token")
-            final_token = token or (settings_token if settings_token else None)
+        # Use provided token, or settings token (GitHub only), or let
+        # the publisher fall back to environment variables.
+        settings_token = github_settings.get("token")
+        final_token = token or (settings_token if settings_token else None)
 
-            try:
-                publisher = GitHubPublisher(
-                    token=final_token,
-                    registry_url=github_settings.get("registry_url"),
-                    owner=final_owner,
-                    repository=github_settings.get("repository"),
+        # Create publisher (handles all registries including GitHub)
+        publisher: PackagePublisher
+        try:
+            publisher = create_publisher(
+                registry=registry,
+                token=final_token,
+                owner=final_owner,
+            )
+        except RuntimeError as e:
+            if "npm is not available" in str(e):
+                click.echo(
+                    "Error: npm is required for publishing packages.\n"
+                    "Please install Node.js and npm from \n"
+                    "https://nodejs.org/",
+                    err=True,
                 )
-            except RuntimeError as e:
-                if "npm command not found" in str(e):
-                    click.echo(
-                        "Error: npm is required for publishing packages.\n"
-                        "Please install Node.js and npm from \n"
-                        "https://nodejs.org/",
-                        err=True,
-                    )
-                    sys.exit(1)
-                else:
-                    raise
-        else:
-            # Use new multi-registry publisher
-            try:
-                publisher = create_publisher(
-                    registry=registry,
-                    token=token,
-                    owner=final_owner,
-                )
-            except RuntimeError as e:
-                if "npm is not available" in str(e):
-                    click.echo(
-                        "Error: npm is required for publishing packages.\n"
-                        "Please install Node.js and npm from \n"
-                        "https://nodejs.org/",
-                        err=True,
-                    )
-                    sys.exit(1)
-                else:
-                    raise
+                sys.exit(1)
+            else:
+                raise
 
         if registry == "openupm":
             click.echo(

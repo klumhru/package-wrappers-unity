@@ -241,7 +241,14 @@ class TestPublishPackage:
             with caplog.at_level(logging.WARNING):
                 pub.publish_package(pkg_dir)  # must not raise
 
-        assert "version conflict" in caplog.text
+        assert any(
+            record.levelno == logging.WARNING
+            and "version conflict" in record.getMessage()
+            for record in caplog.records
+        ), "Expected a WARNING record mentioning 'version conflict'"
+        assert not any(
+            record.levelno >= logging.ERROR for record in caplog.records
+        ), "Expected no ERROR records for a version conflict"
         assert "View at:" in caplog.text
 
     def test_conflict_does_not_raise(self, tmp_path: Path) -> None:
