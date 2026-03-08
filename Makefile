@@ -1,12 +1,7 @@
 .PHONY: install install-dev test lint format clean build publish watch help
 
 # Variables
-PYTHON := python
-PIP := pip
-PYTEST := pytest
-BLACK := black
-FLAKE8 := flake8
-MYPY := mypy
+POETRY := poetry
 
 help: ## Show this help message
 	@echo "Unity Package Wrapper - Development Commands"
@@ -15,25 +10,25 @@ help: ## Show this help message
 	@echo "Targets:"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-install: ## Install the package
-	$(PIP) install -e .
+install: ## Install the project and dependencies via Poetry
+	$(POETRY) install
 
-install-dev: ## Install development dependencies
-	$(PIP) install -e ".[dev]"
+install-dev: ## Install project with development group via Poetry
+	$(POETRY) install --with dev
 
 test: ## Run tests
-	$(PYTEST) tests/ -v --cov=unity_wrapper --cov-report=term-missing
+	$(POETRY) run pytest tests/ -v --cov=unity_wrapper --cov-report=term-missing
 
 test-coverage: ## Run tests with coverage report
-	$(PYTEST) tests/ -v --cov=unity_wrapper --cov-report=html --cov-report=xml
+	$(POETRY) run pytest tests/ -v --cov=unity_wrapper --cov-report=html --cov-report=xml
 
 lint: ## Run linting checks
-	$(BLACK) --check src tests
-	$(FLAKE8) src tests
-	$(MYPY) src tests
+	$(POETRY) run black --check src tests
+	$(POETRY) run flake8 src tests
+	$(POETRY) run mypy src tests
 
 format: ## Format code
-	$(BLACK) src tests
+	$(POETRY) run black src tests
 
 clean: ## Clean temporary files
 	rm -rf build/
@@ -48,22 +43,22 @@ clean: ## Clean temporary files
 	find . -type f -name "*.pyc" -delete
 
 build: ## Build Unity packages
-	unity-wrapper build
+	$(POETRY) run unity-wrapper build
 
 build-package: ## Build specific package (usage: make build-package PACKAGE=com.example.package)
-	unity-wrapper build $(PACKAGE)
+	$(POETRY) run unity-wrapper build $(PACKAGE)
 
 watch: ## Watch for configuration changes and auto-rebuild
-	unity-wrapper watch
+	$(POETRY) run unity-wrapper watch
 
 check: ## Check which packages need updates
-	unity-wrapper check
+	$(POETRY) run unity-wrapper check
 
-publish: ## Publish packages to GitHub Package Registry
-	unity-wrapper publish
+publish: ## Publish packages (env: REGISTRY= npmjs|github, OWNER=<scope/org>)
+	$(POETRY) run unity-wrapper publish $(if $(REGISTRY),--registry $(REGISTRY),) $(if $(OWNER),--owner $(OWNER),)
 
 list: ## List configured packages
-	unity-wrapper list-packages
+	$(POETRY) run unity-wrapper list-packages
 
 setup-config: ## Create example configuration files
 	@echo "Creating example configuration files..."
@@ -90,8 +85,6 @@ setup-config: ## Create example configuration files
 	fi
 	@echo "Configuration files created in config/"
 
-dev-setup: setup ## Complete development setup (alias for setup)
-
 # Docker targets (optional)
 docker-build: ## Build Docker image
 	docker build -t unity-package-wrapper .
@@ -102,21 +95,21 @@ docker-run: ## Run in Docker container
 # Git hooks
 install-hooks: ## Install pre-commit hooks
 	@echo "Installing pre-commit hooks..."
-	pre-commit install
+	$(POETRY) run pre-commit install
 	@echo "✓ Pre-commit hooks installed!"
 	@echo "Hooks will run automatically on 'git commit'"
 	@echo "To run hooks manually: make run-hooks"
 
 run-hooks: ## Run pre-commit hooks on all files
 	@echo "Running pre-commit hooks on all files..."
-	pre-commit run --all-files
+	$(POETRY) run pre-commit run --all-files
 
 # Quality assurance target that runs all checks
 qa: format lint test ## Run all quality assurance checks (format, lint, test)
 	@echo "✓ All quality checks passed!"
 
 # Setup target that includes pre-commit hooks
-setup: install-dev setup-config install-hooks ## Complete development setup with pre-commit hooks
+dev-setup: install-dev setup-config install-hooks ## Complete development setup with pre-commit hooks
 	@echo "✓ Development environment setup complete!"
 	@echo ""
 	@echo "Pre-commit hooks installed and will run on each commit:"

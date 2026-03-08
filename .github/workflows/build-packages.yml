@@ -59,10 +59,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 2.1.4
+
+      - name: Install dependencies (Poetry)
         run: |
-          python -m pip install --upgrade pip
-          pip install -e .
+          make install
 
       - name: Configure Git
         run: |
@@ -73,7 +77,7 @@ jobs:
         id: check-updates
         run: |
           echo "Checking for package updates..."
-          unity-wrapper check > check_output.txt 2>&1
+          make check > check_output.txt 2>&1
           cat check_output.txt
 
           # Check if any packages need updates
@@ -87,13 +91,13 @@ jobs:
         if: github.event.inputs.package_name != ''
         run: |
           echo "Building specific package: ${{ github.event.inputs.package_name }}"
-          unity-wrapper build "${{ github.event.inputs.package_name }}"
+          make build-package PACKAGE="${{ github.event.inputs.package_name }}"
 
       - name: Build all packages
         if: github.event.inputs.package_name == '' && steps.check-updates.outputs.updates-needed == 'true'
         run: |
           echo "Building all packages..."
-          unity-wrapper build
+          make build
 
       - name: Upload package artifacts
         if: steps.check-updates.outputs.updates-needed == 'true' || github.event.inputs.package_name != ''
@@ -150,7 +154,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "Publishing packages to npmjs.org..."
-          unity-wrapper publish --registry npmjs --owner klumhru
+          make publish REGISTRY=npmjs OWNER=klumhru
 
   test:
     runs-on: ubuntu-latest
@@ -162,14 +166,18 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 2.1.4
 
-      - name: Run tests
+      - name: Install dependencies (Poetry)
         run: |
-          pytest --cov=unity_wrapper --cov-report=xml
+          make install-dev
+
+      - name: Run tests with coverage
+        run: |
+          make test-coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
@@ -188,13 +196,15 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 2.1.4
+
+      - name: Install dependencies (Poetry)
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          make install-dev
 
       - name: Run linting
         run: |
-          black --check src tests
-          flake8 src tests
-          mypy src tests
+          make lint
