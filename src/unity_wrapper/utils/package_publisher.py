@@ -175,13 +175,20 @@ class PackagePublisher:
 
         original_name = package_json["name"]
         version = package_json["version"]
-        scoped_name = self._compute_scoped_name(original_name)
+        # For GitHub, publish under the unscoped UPM name so Unity
+        # Package Manager can resolve it.  Scope is inferred by GitHub
+        # from the repository field and publishConfig.registry.
+        display_name = (
+            original_name
+            if self.registry == "github"
+            else self._compute_scoped_name(original_name)
+        )
         browse_url = self._package_browse_url(
-            scoped_name, original_name, version
+            display_name, original_name, version
         )
 
         logger.info(
-            f"Publishing {scoped_name}@{version} to "
+            f"Publishing {display_name}@{version} to "
             f"{self.registry} registry"
         )
 
@@ -196,13 +203,13 @@ class PackagePublisher:
                 self._npm_publish(package_copy)
 
             logger.info(
-                f"Successfully published {scoped_name}@{version}. "
+                f"Successfully published {display_name}@{version}. "
                 f"View at: {browse_url}"
             )
         except subprocess.CalledProcessError as e:
             if self._is_publish_conflict(e):
                 logger.warning(
-                    f"{scoped_name}@{version} already published "
+                    f"{display_name}@{version} already published "
                     f"(version conflict). View at: {browse_url}"
                 )
             else:
@@ -216,12 +223,22 @@ class PackagePublisher:
         shutil.copytree(source, dest)
 
     def _update_package_json(self, package_json_path: Path) -> None:
-        """Update package.json for the target registry."""
+        """Update package.json for the target registry.
+
+        For GitHub, the ``name`` field is kept unscoped (e.g.
+        ``com.foo.bar``) so that Unity Package Manager can resolve it.
+        GitHub infers ownership from the ``repository`` field and
+        ``publishConfig.registry``. For npmjs the name is scoped
+        (e.g. ``@owner/com.foo.bar``).
+        """
         with open(package_json_path, "r", encoding="utf-8") as f:
             package_json = json.load(f)
 
         original_name = package_json["name"]
-        package_json["name"] = self._compute_scoped_name(original_name)
+        # GitHub: keep unscoped name for UPM compatibility.
+        # npmjs: scope the name so consumers can install it.
+        if self.registry != "github":
+            package_json["name"] = self._compute_scoped_name(original_name)
 
         if self.owner and self.registry in ["github", "npmjs"]:
             package_json["repository"] = {
@@ -277,7 +294,12 @@ class PackagePublisher:
             logger.info("OpenUPM package existence check not implemented")
             return False
 
-        scoped_name = self._compute_scoped_name(package_name)
+        # GitHub stores packages under their unscoped UPM name.
+        scoped_name = (
+            package_name
+            if self.registry == "github"
+            else self._compute_scoped_name(package_name)
+        )
 
         try:
             subprocess.run(

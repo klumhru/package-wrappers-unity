@@ -5,6 +5,7 @@ import logging
 import os
 import subprocess
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -292,3 +293,134 @@ class TestPublishPackage:
         pub = self._publisher_with_repo()
         with pytest.raises(FileNotFoundError, match="package.json not found"):
             pub.publish_package(tmp_path / "nonexistent")
+
+
+class TestUpdatePackageJson:
+    """Verify _update_package_json UPM-compatible name handling."""
+
+    def _write_pkg(self, path: Path, name: str = "com.foo.bar") -> None:
+        (path / "package.json").write_text(
+            json.dumps({"name": name, "version": "1.0.0"})
+        )
+
+    def _read_pkg(self, path: Path) -> dict[str, Any]:
+        result: dict[str, Any] = json.loads(
+            (path / "package.json").read_text()
+        )
+        return result
+
+    def test_github_keeps_unscoped_name(self, tmp_path: Path) -> None:
+        """GitHub registry must NOT scope the name so UPM can resolve it."""
+        self._write_pkg(tmp_path)
+        pub = _make_publisher(registry="github", owner="myorg")
+        pub._update_package_json(tmp_path / "package.json")
+        pkg = self._read_pkg(tmp_path)
+        assert pkg["name"] == "com.foo.bar"
+
+    def test_github_adds_publish_config(self, tmp_path: Path) -> None:
+        self._write_pkg(tmp_path)
+        pub = _make_publisher(registry="github", owner="myorg")
+        pub._update_package_json(tmp_path / "package.json")
+        pkg = self._read_pkg(tmp_path)
+        assert "publishConfig" in pkg
+        assert "npm.pkg.github.com" in pkg["publishConfig"]["registry"]
+
+    def test_github_adds_repository_field(self, tmp_path: Path) -> None:
+        self._write_pkg(tmp_path)
+        pub = _make_publisher(registry="github", owner="myorg")
+        pub._update_package_json(tmp_path / "package.json")
+        pkg = self._read_pkg(tmp_path)
+        assert pkg["repository"]["type"] == "git"
+        assert "myorg" in pkg["repository"]["url"]
+
+    def test_npmjs_scopes_name(self, tmp_path: Path) -> None:
+        """npmjs registry MUST scope the name."""
+        self._write_pkg(tmp_path)
+        pub = _make_publisher(registry="npmjs", owner="myorg")
+        pub._update_package_json(tmp_path / "package.json")
+        pkg = self._read_pkg(tmp_path)
+        assert pkg["name"] == "@myorg/com.foo.bar"
+
+    def test_npmjs_no_publish_config(self, tmp_path: Path) -> None:
+        self._write_pkg(tmp_path)
+        pub = _make_publisher(registry="npmjs", owner="myorg")
+        pub._update_package_json(tmp_path / "package.json")
+        pkg = self._read_pkg(tmp_path)
+        assert "publishConfig" not in pkg
+
+
+class TestPublishPackageUpmNames:
+    """Verify publish_package logs the unscoped name for GitHub."""
+
+    _PKG_JSON = json.dumps({"name": "com.foo.bar", "version": "1.0.0"})
+
+    def test_github_logs_unscoped_name(
+        self,
+        caplog: pytest.LogCaptureFixture,
+        tmp_path: Path,
+    ) -> None:
+        pkg_dir = tmp_path / "pkg"
+        pkg_dir.mkdir()
+        (pkg_dir / "package.json").write_text(self._PKG_JSON)
+
+        pub = _make_publisher(registry="github")
+        pub.repo = "my-wrappers"
+
+        with (
+            patch.object(pub, "_copy_package"),
+            patch.object(pub, "_update_package_json"),
+            patch.object(pub, "_configure_npm"),
+            patch.object(pub, "_npm_publish"),
+        ):
+            with caplog.at_level(logging.INFO):
+                pub.publish_package(pkg_dir)
+
+        assert "com.foo.bar@1.0.0" in caplog.text
+        assert "@testowner/com.foo.bar" not in caplog.text
+
+    def test_npmjs_logs_scoped_name(
+        self,
+        caplog: pytest.LogCaptureFixture,
+        tmp_path: Path,
+    ) -> None:
+        pkg_dir = tmp_path / "pkg"
+        pkg_dir.mkdir()
+        (pkg_dir / "package.json").write_text(self._PKG_JSON)
+
+        pub = _make_publisher(registry="npmjs")
+
+        with (
+            patch.object(pub, "_copy_package"),
+            patch.object(pub, "_update_package_json"),
+            patch.object(pub, "_configure_npm"),
+            patch.object(pub, "_npm_publish"),
+        ):
+            with caplog.at_level(logging.INFO):
+                pub.publish_package(pkg_dir)
+
+        assert "@testowner/com.foo.bar@1.0.0" in caplog.text
+
+
+class TestCheckPackageExistsUpmNames:
+    """check_package_exists queries GitHub with the unscoped name."""
+
+    def test_github_uses_unscoped_name(self) -> None:
+        pub = _make_publisher(registry="github", owner="myorg")
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="1.0.0")
+            pub.check_package_exists("com.foo.bar", "1.0.0")
+            call_args = " ".join(mock_run.call_args[0][0])
+
+        assert "com.foo.bar" in call_args
+        assert "@myorg/com.foo.bar" not in call_args
+
+    def test_npmjs_uses_scoped_name(self) -> None:
+        pub = _make_publisher(registry="npmjs", owner="myorg")
+
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="1.0.0")
+            pub.check_package_exists("com.foo.bar", "1.0.0")
+            call_args = " ".join(mock_run.call_args[0][0])
+
+        assert "@myorg/com.foo.bar" in call_args
