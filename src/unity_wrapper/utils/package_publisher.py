@@ -271,7 +271,13 @@ class PackagePublisher:
             # OpenUPM submission is manual, not via npm publish
 
     def _npm_publish(self, package_dir: Path) -> None:
-        """Publish package using npm."""
+        """Publish package using npm.
+
+        For GitHub, ``--scope=@{owner}`` is passed so the registry can
+        route the package to the correct owner without requiring the
+        scope to be embedded in the ``name`` field of ``package.json``.
+        This keeps the UPM-compatible unscoped name intact.
+        """
         if self.registry == "openupm":
             logger.warning(
                 "OpenUPM packages must be submitted manually at "
@@ -279,8 +285,12 @@ class PackagePublisher:
             )
             return
 
+        cmd = ["npm", "publish"]
+        if self.registry == "github" and self.owner:
+            cmd += [f"--scope=@{self.owner}"]
+
         result = subprocess.run(
-            ["npm", "publish"],
+            cmd,
             cwd=package_dir,
             check=True,
             capture_output=True,

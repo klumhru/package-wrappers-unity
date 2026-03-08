@@ -424,3 +424,37 @@ class TestCheckPackageExistsUpmNames:
             call_args = " ".join(mock_run.call_args[0][0])
 
         assert "@myorg/com.foo.bar" in call_args
+
+
+class TestNpmPublishScope:
+    """_npm_publish passes --scope=@owner for GitHub, not for others."""
+
+    def test_github_with_owner_passes_scope_flag(self) -> None:
+        pub = _make_publisher(registry="github", owner="myorg")
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout="", stderr=""
+            )
+            pub._npm_publish(Path("/tmp/pkg"))
+            cmd = mock_run.call_args[0][0]
+        assert "--scope=@myorg" in cmd
+
+    def test_github_without_owner_omits_scope_flag(self) -> None:
+        pub = _make_publisher(registry="github", owner="")
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout="", stderr=""
+            )
+            pub._npm_publish(Path("/tmp/pkg"))
+            cmd = mock_run.call_args[0][0]
+        assert not any(a.startswith("--scope") for a in cmd)
+
+    def test_npmjs_omits_scope_flag(self) -> None:
+        pub = _make_publisher(registry="npmjs", owner="myorg")
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout="", stderr=""
+            )
+            pub._npm_publish(Path("/tmp/pkg"))
+            cmd = mock_run.call_args[0][0]
+        assert not any(a.startswith("--scope") for a in cmd)
