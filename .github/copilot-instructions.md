@@ -37,7 +37,7 @@ make publish REGISTRY=github OWNER=myorg
 
 `PackageBuilder` is the top-level orchestrator used as a context manager. It wires together:
 - `ConfigManager` — reads `config/packages.yaml` and `config/settings.yaml`
-- `GitManager` — clones/updates source repos into `.unity_wrapper_temp/`
+- `GitManager` — clones/updates source repos; supports a persistent `cache_dir` (default `.git-cache/`) and parallel prefetch via `prefetch_all()`
 - `NuGetManager` — downloads `.nupkg` files from nuget.org for NuGet-sourced packages
 - `UnityGenerator` — produces all Unity-specific output files using Jinja2 templates from `templates/`
 - `PackagePublisher` / `GitHubPublisher` — publishes via npm CLI (npm must be installed)
@@ -62,7 +62,9 @@ The `PackageBuilder` determines type via `ConfigManager.get_package_type()`, whi
 
 **`assembly_references`**: Optional list in packages.yaml for adding cross-assembly references to the `.asmdef` (e.g., `["UniTask"]`).
 
-**Work directory**: `.unity_wrapper_temp/` is a throwaway scratch space for git clones and NuGet downloads. It is cleaned up when `PackageBuilder` exits its context. Do not persist data there.
+**Work directory**: `.unity_wrapper_temp/` is a throwaway scratch space for NuGet downloads and intermediate files. It is cleaned up when `PackageBuilder` exits its context. Do not persist data there.
+
+**Git clone cache**: `.git-cache/` is a *persistent* directory where `GitManager` stores git clones between builds. It is never deleted by `cleanup()`. Configure the path via `build.git_cache_dir` in `settings.yaml`. Parallel fetches are controlled by `build.max_parallel_clones` (default `4`). `build_all_packages()` runs a parallel prefetch phase before sequential Unity generation.
 
 ## Code Style
 
